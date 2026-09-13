@@ -37,7 +37,7 @@ class AdapterTest(unittest.TestCase):
         by_name = {t["name"]: t for t in tools}
         self.assertEqual(by_name["query"]["input_schema"]["required"], ["table"])
         self.assertTrue(by_name["query"]["input_examples"])
-        self.assertEqual(len(anthropic.tool_definitions(self.engine, tier="minimal")), 1)
+        self.assertEqual(len(anthropic.tool_definitions(self.engine, tier="minimal")), 2)
 
     def test_openai_strict(self) -> None:
         """Every object lists all properties as required, optional ones nullable, no additional properties."""

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from sql_rag_util.commands.diagnose import empty_result_notes
 from sql_rag_util.commands.results import shape_rows, table_text
 from sql_rag_util.commands.spec import CommandResult, ToolSpec
 from sql_rag_util.query.compile import compile_query
@@ -39,7 +40,7 @@ def query(engine, spec: QuerySpec) -> CommandResult:  # type: ignore[no-untyped-
     if cut:
         notes.append(f"{cut} cell{'s' if cut > 1 else ''} shortened to {engine.limits.max_cell_chars} characters.")
     if not rows:
-        notes.append(_EMPTY_NOTE)
+        notes.extend(empty_result_notes(engine, table, spec.filters) or (_EMPTY_NOTE,))
     data = {"table": agent_name(engine.catalog, table.ref), "columns": list(compiled.columns), "rows": rows, "row_count": len(rows)}
     if engine.config.reveal_sql:
         data["sql"] = render(compiled.statement, engine.executor.paramstyle)[0]

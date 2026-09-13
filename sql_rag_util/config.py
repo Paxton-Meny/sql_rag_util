@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from sql_rag_util.exceptions import ConfigurationError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 __all__ = ["Limits", "Config", "StatementEvent"]
 
@@ -91,6 +91,9 @@ class Config:
         filter mappings applied to every statement on that table.
     on_statement
         Audit hook called after every executed statement.
+    embed
+        Optional function from texts to vectors for schema retrieval. It
+        receives identifiers and metadata text only, never cell values.
     """
 
     limits: Limits = Limits()
@@ -100,9 +103,12 @@ class Config:
     include_row_estimates: bool = True
     scope: Callable[[str], tuple[dict[str, object], ...]] | None = None
     on_statement: Callable[[StatementEvent], None] | None = None
+    embed: Callable[[Sequence[str]], Sequence[Sequence[float]]] | None = None
 
     def __post_init__(self) -> None:
         if self.scope is not None and not callable(self.scope):
             raise ConfigurationError("Config.scope must be callable or None")
         if self.on_statement is not None and not callable(self.on_statement):
             raise ConfigurationError("Config.on_statement must be callable or None")
+        if self.embed is not None and not callable(self.embed):
+            raise ConfigurationError("Config.embed must be callable or None")

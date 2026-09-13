@@ -17,6 +17,8 @@ from sql_rag_util.metadata.annotate import annotate
 from sql_rag_util.metadata.model import Metadata
 from sql_rag_util.metadata.store import MetadataStore
 from sql_rag_util.query.spec import Filter
+from sql_rag_util.retrieval.cache import JsonCache
+from sql_rag_util.retrieval.pack import Retriever
 from sql_rag_util.schema.introspect import introspect
 from sql_rag_util.sql.render import PARAMSTYLES
 
@@ -46,6 +48,9 @@ class SqlRag:
         Overrides the driver's reported paramstyle.
     metadata_root
         Directory of metadata files, or ``None`` for none.
+    cache_dir
+        Directory for value and embedding caches. Defaults to ``.cache``
+        under the metadata root; ``None`` with no metadata root disables caching.
     schemas
         Namespaces to load; ``None`` loads the dialect default.
     config
@@ -59,6 +64,7 @@ class SqlRag:
         dialect: str | None = None,
         paramstyle: str | None = None,
         metadata_root: str | os.PathLike[str] | None = None,
+        cache_dir: str | os.PathLike[str] | None = None,
         schemas: tuple[str, ...] | None = None,
         config: Config = Config(),
     ) -> None:
@@ -71,15 +77,32 @@ class SqlRag:
         self._schemas = schemas
         self._executor = Executor(connection, style, on_statement=config.on_statement)
         self._store = MetadataStore(metadata_root) if metadata_root is not None else None
+        if cache_dir is None and self._store is not None:
+            cache_dir = self._store.path(".cache")
+        self._cache = JsonCache(cache_dir) if cache_dir is not None else None
         self._registry = default_registry()
         self._annotated: AnnotatedCatalog
+        self._retriever: Retriever | None = None
         self.refresh()
 
     def refresh(self) -> None:
-        """Re-read the catalog and the metadata."""
-        catalog = introspect(self._executor, self._dialect, schemas=self._schemas, include_row_estimates=self._config.include_row_estimates)
+        """Re-read the catalog and the metadata; retrieval indexes rebuild on next use."""
+        self._raw_catalog = introspect(self._executor, self._dialect, schemas=self._schemas, include_row_estimates=self._config.include_row_estimates)
         metadata = self._store.load() if self._store is not None else Metadata()
-        self._annotated = annotate(catalog, metadata, self._dialect, max_join_depth=self.limits.max_join_depth)
+        self._annotated = annotate(self._raw_catalog, metadata, self._dialect, max_join_depth=self.limits.max_join_depth)
+        self._retriever = None
+
+    @property
+    def retriever(self) -> Retriever:
+        """Return the retrieval indexes, building them on first use."""
+        if self._retriever is None:
+            self._retriever = Retriever(self._executor, self._dialect, self._annotated, embed=self._config.embed, cache=self._cache)
+        return self._retriever
+
+    @property
+    def retriever_ready(self) -> bool:
+        """Return whether the retrieval indexes have been built since the last refresh."""
+        return self._retriever is not None
 
     @property
     def dialect(self) -> Dialect:
@@ -110,6 +133,15 @@ class SqlRag:
     def catalog(self) -> Catalog:
         """Return the catalog, including renamed and declared relationships."""
         return self._annotated.catalog
+
+    @property
+    def raw_catalog(self) -> Catalog:
+        """Return the catalog as introspected, before metadata was applied."""
+        return self._raw_catalog
+
+    def validate_metadata(self, metadata: Metadata) -> None:
+        """Raise unless ``metadata`` annotates the raw catalog cleanly."""
+        annotate(self._raw_catalog, metadata, self._dialect, max_join_depth=self.limits.max_join_depth)
 
     @property
     def store(self) -> MetadataStore | None:
