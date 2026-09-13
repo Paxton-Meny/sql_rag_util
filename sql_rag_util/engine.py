@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from sql_rag_util.commands import default_registry
 from sql_rag_util.commands.arguments import build_arguments
 from sql_rag_util.commands.dispatch import Dispatcher
+from sql_rag_util.commands.instructions import instructions
 from sql_rag_util.config import Config
 from sql_rag_util.dialects import load
 from sql_rag_util.dialects.detect import detect
@@ -144,6 +145,10 @@ class SqlRag:
     def dispatch_text(self, name: str, arguments: dict[str, Any], *, tier: str = "standard") -> str:
         """Run a tool by name and return its compact text."""
         return self.dispatcher(tier=tier).call_text(name, arguments)
+
+    def instructions(self) -> str:
+        """Return the system-prompt block describing the workflow for this database."""
+        return instructions(self)
 
     def run(self, name: str, arguments: dict[str, Any]) -> CommandResult:
         """Run a tool by name and return the raw result; errors propagate."""
