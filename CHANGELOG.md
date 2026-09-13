@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Dialect fuzzy predicates: Soundex on all four, DIFFERENCE and FREETEXT on SQL Server, levenshtein_less_equal, similarity, and difference on PostgreSQL, registered functions on SQLite.
 - Search primitives: term tokenizing, American Soundex, bounded Levenshtein, and explicit SQLite function registration.
 - SqlRag.instructions() workflow block and the agent tool reference in docs/agent-tools.md.
 - The query tool: concepts, named measures, scope filters, shaped rows, notes, optional revealed SQL.

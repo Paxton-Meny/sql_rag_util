@@ -96,6 +96,14 @@ class SqliteDialect(Dialect):
             + sql(") ORDER BY id, seq")
         )
 
+    def soundex_match(self, column_sql: str, text: str) -> Statement:
+        """Compare Soundex codes through the registered or built-in function."""
+        return sql(f"soundex({column_sql}) = soundex(") + bind(text) + sql(")")
+
+    def levenshtein_within(self, column_sql: str, text: str, distance: int) -> Statement:
+        """Use the registered ``levenshtein`` function."""
+        return sql(f"levenshtein({column_sql}, ") + bind(text) + sql(") <= ") + bind(distance)
+
     def capability_probe_statement(self) -> Statement | None:
         """Report which registered functions exist, so registration is detected rather than assumed."""
         return sql("SELECT name FROM pragma_function_list WHERE name IN ('soundex', 'levenshtein')")
