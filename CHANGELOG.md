@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- The search_rows tool: word-level matching across searchable columns with contains plus the fuzzy strategies the connection supports; word-aware SQLite functions.
 - Retrieval tokenizer (case, underscore, plural folding, stopwords) and a BM25 index with weighted fields.
 - Dialect fuzzy predicates: Soundex on all four, DIFFERENCE and FREETEXT on SQL Server, levenshtein_less_equal, similarity, and difference on PostgreSQL, registered functions on SQLite.
 - Search primitives: term tokenizing, American Soundex, bounded Levenshtein, and explicit SQLite function registration.

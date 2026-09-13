@@ -17,8 +17,8 @@ class FuzzyPredicateTest(unittest.TestCase):
     def test_goldens(self) -> None:
         """Rendered predicates per dialect."""
         cases = {
-            ("sqlite", "soundex_match"): ('soundex("c") = soundex(?)', ("jon",)),
-            ("sqlite", "levenshtein_within"): ('levenshtein("c", ?) <= ?', ("jon", 2)),
+            ("sqlite", "soundex_match"): ('sqlrag_soundex_any("c", ?) = 1', ("jon",)),
+            ("sqlite", "levenshtein_within"): ('sqlrag_levenshtein_min("c", ?) <= ?', ("jon", 2)),
             ("mysql", "soundex_match"): ("SOUNDEX(`c`) = SOUNDEX(%s)", ("jon",)),
             ("mssql", "soundex_match"): ("SOUNDEX([c]) = SOUNDEX(?)", ("jon",)),
             ("mssql", "difference_at_least"): ("DIFFERENCE([c], ?) >= ?", ("jon", 3)),
@@ -49,12 +49,12 @@ class FuzzyPredicateTest(unittest.TestCase):
         self.addCleanup(conn.close)
         register_sqlite_functions(conn)
         conn.execute("CREATE TABLE p (n TEXT)")
-        conn.executemany("INSERT INTO p VALUES (?)", [("Smith",), ("Jones",)])
+        conn.executemany("INSERT INTO p VALUES (?)", [("Ann Smith",), ("Bob Jones",)])
         dialect = load("sqlite")
         text, params = render(dialect.soundex_match('"n"', "Smyth"), "qmark")
-        self.assertEqual(conn.execute(f"SELECT n FROM p WHERE {text}", params).fetchall(), [("Smith",)])
+        self.assertEqual(conn.execute(f"SELECT n FROM p WHERE {text}", params).fetchall(), [("Ann Smith",)])
         text, params = render(dialect.levenshtein_within('"n"', "Jonas", 2), "qmark")
-        self.assertEqual(conn.execute(f"SELECT n FROM p WHERE {text}", params).fetchall(), [("Jones",)])
+        self.assertEqual(conn.execute(f"SELECT n FROM p WHERE {text}", params).fetchall(), [("Bob Jones",)])
 
 
 if __name__ == "__main__":

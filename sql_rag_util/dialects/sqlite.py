@@ -39,9 +39,11 @@ _AFFINITY_KINDS: tuple[tuple[str, ColumnKind], ...] = (
     ("floa", ColumnKind.FLOAT),
     ("doub", ColumnKind.FLOAT),
 )
+_SOUNDEX_FUNCTION = "sqlrag_soundex_any"
+_LEVENSHTEIN_FUNCTION = "sqlrag_levenshtein_min"
 _PROBED_FUNCTIONS: dict[str, str] = {
-    "soundex": Capability.SOUNDEX,
-    "levenshtein": Capability.LEVENSHTEIN,
+    _SOUNDEX_FUNCTION: Capability.SOUNDEX,
+    _LEVENSHTEIN_FUNCTION: Capability.LEVENSHTEIN,
 }
 
 
@@ -97,16 +99,16 @@ class SqliteDialect(Dialect):
         )
 
     def soundex_match(self, column_sql: str, text: str) -> Statement:
-        """Compare Soundex codes through the registered or built-in function."""
-        return sql(f"soundex({column_sql}) = soundex(") + bind(text) + sql(")")
+        """Use the registered word-aware Soundex function."""
+        return sql(f"{_SOUNDEX_FUNCTION}({column_sql}, ") + bind(text) + sql(") = 1")
 
     def levenshtein_within(self, column_sql: str, text: str, distance: int) -> Statement:
-        """Use the registered ``levenshtein`` function."""
-        return sql(f"levenshtein({column_sql}, ") + bind(text) + sql(") <= ") + bind(distance)
+        """Use the registered word-aware Levenshtein function."""
+        return sql(f"{_LEVENSHTEIN_FUNCTION}({column_sql}, ") + bind(text) + sql(") <= ") + bind(distance)
 
     def capability_probe_statement(self) -> Statement | None:
         """Report which registered functions exist, so registration is detected rather than assumed."""
-        return sql("SELECT name FROM pragma_function_list WHERE name IN ('soundex', 'levenshtein')")
+        return sql(f"SELECT name FROM pragma_function_list WHERE name IN ('{_SOUNDEX_FUNCTION}', '{_LEVENSHTEIN_FUNCTION}')")
 
     def probe_capabilities(self, names: Iterable[str]) -> frozenset[str]:
         """Map registered function names to capabilities."""

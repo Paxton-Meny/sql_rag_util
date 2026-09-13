@@ -50,7 +50,7 @@ class SchemaForTest(unittest.TestCase):
         self.assertEqual(props["tags"], {"type": "array", "items": {"type": "string"}, "description": "Tags."})
         self.assertEqual(props["mode"]["enum"], ["a", "b"])
         self.assertEqual(props["color"]["enum"], ["red", "blue"])
-        self.assertEqual(props["inner"]["anyOf"][0], {"type": ["null"]})
+        self.assertEqual(props["inner"]["anyOf"][0], {"type": "null"})
         self.assertEqual(props["inner"]["anyOf"][1]["properties"]["name"]["type"], "string")
         self.assertEqual(props["value"]["anyOf"][0], {"type": ["string", "integer"]})
         self.assertEqual(props["value"]["anyOf"][1]["type"], "array")
