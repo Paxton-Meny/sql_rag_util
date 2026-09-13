@@ -60,12 +60,12 @@ class EngineTest(unittest.TestCase):
         engine = SqlRag(self.conn, dialect="sqlite3", paramstyle="named", config=Config(limits=Limits(max_rows=5)))
         self.assertEqual((engine.executor.paramstyle, engine.limits.max_rows), ("named", 5))
 
-    def test_tools_and_dispatch_without_commands(self) -> None:
-        """With no tools registered, dispatch answers with an UnknownToolError envelope."""
+    def test_unknown_tool_envelope(self) -> None:
+        """An unregistered tool name answers with an UnknownToolError envelope in both formats."""
         engine = SqlRag(self.conn)
-        self.assertEqual(engine.tool_specs(), ())
-        self.assertEqual(engine.dispatch("query", {"table": "orders"})["error"]["type"], "UnknownToolError")
-        self.assertTrue(engine.dispatch_text("query", {}).startswith("error UnknownToolError"))
+        self.assertTrue(engine.tool_specs())
+        self.assertEqual(engine.dispatch("no_such_tool", {})["error"]["type"], "UnknownToolError")
+        self.assertTrue(engine.dispatch_text("no_such_tool", {}).startswith("error UnknownToolError"))
 
 
 if __name__ == "__main__":
