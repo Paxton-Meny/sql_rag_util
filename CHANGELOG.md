@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Join planning through relationship paths with depth cap and fan-out detection; measure expressions with kind gates.
 - Column policy (hidden and sensitive) and filter predicates with kind gates, bound IN lists, LIKE escaping, and Python-computed since_days bounds.
 - Query spec: Filter, Measure, Order, and QuerySpec with operator and aggregate whitelists validated on construction.
 - Name resolution for tables, columns, and relationships with close-match suggestions.
