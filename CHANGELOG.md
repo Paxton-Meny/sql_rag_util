@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- The query tool: concepts, named measures, scope filters, shaped rows, notes, optional revealed SQL.
 - Schema cards and the describe_table and list_tables tools.
 - SqlRag engine facade: detection, introspection, metadata annotation, scope filters, tool listing by tier, dispatch; result shaping to JSON scalars and tab-separated text.
 - Argument building from JSON, the tool registry with tiers and mutation gating, and the dispatcher with JSON and compact envelopes.
