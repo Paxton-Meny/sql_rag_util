@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Statement model (fragments plus binds) and a renderer for every PEP 249 paramstyle.
 - Config and Limits with validation, the scope hook, and the statement audit hook.
 - Catalog model: frozen TableRef, ColumnInfo, TableInfo, ForeignKeyInfo, Relationship, Catalog, and ColumnKind.
 - Exceptions module: one base class, agent-correctable suggestions, located metadata errors.

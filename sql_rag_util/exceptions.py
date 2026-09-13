@@ -26,6 +26,7 @@ __all__ = [
     "MetadataFormatError",
     "MetadataPathError",
     "ToolSpecError",
+    "StatementError",
     "ExecutionError",
 ]
 
@@ -134,6 +135,10 @@ class MetadataPathError(MetadataError):
 
 class ToolSpecError(SqlRagError):
     """A command's argument type cannot be turned into a tool definition."""
+
+
+class StatementError(SqlRagError):
+    """A statement cannot be assembled or rendered."""
 
 
 class ExecutionError(SqlRagError):
