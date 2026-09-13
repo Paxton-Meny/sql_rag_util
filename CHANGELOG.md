@@ -7,6 +7,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 ### Added
 
 - Architecture overview and threat model under `docs/`.
+- Metadata format specification, version 1, and the first design notes under `docs/design/`.
 - Repository scaffolding: license, contribution guide, security policy, issue and pull request templates, pre-commit gate, package and test skeleton.
 
 [Unreleased]: https://github.com/Paxton-Meny/sql_rag_util/commits/main
