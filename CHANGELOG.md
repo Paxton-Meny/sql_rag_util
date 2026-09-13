@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Name resolution for tables, columns, and relationships with close-match suggestions.
 - Catalog introspection: tables, columns, keys, implied key targets, capabilities, and a structural fingerprint.
 - Relationship derivation from foreign keys with collision-free naming.
 - Executor: the single execution site, fetching limit plus one, closing cursors, never committing, firing the audit hook.
