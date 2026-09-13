@@ -1,0 +1,18 @@
+# project-standards:begin
+.env
+.env.*
+*.pem
+*.key
+# project-standards:end
+
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
