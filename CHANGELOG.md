@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Metadata model and the document layer of the strict parser (title, header, sections, bullets) with located errors.
 - Query compiler: one bounded SELECT per spec with default primary-key ordering, aggregate idioms, extra filters, and agent notes.
 - Join planning through relationship paths with depth cap and fan-out detection; measure expressions with kind gates.
 - Column policy (hidden and sensitive) and filter predicates with kind gates, bound IN lists, LIKE escaping, and Python-computed since_days bounds.
