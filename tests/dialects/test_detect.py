@@ -30,7 +30,9 @@ class DetectTest(unittest.TestCase):
 
     def test_live_sqlite(self) -> None:
         """The real sqlite3 module is detected with its qmark paramstyle."""
-        found = detect(sqlite3.connect(":memory:"))
+        conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
+        found = detect(conn)
         self.assertEqual((found.dialect, found.paramstyle), ("sqlite", "qmark"))
 
     def test_missing_or_bad_paramstyle_is_none(self) -> None:

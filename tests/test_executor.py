@@ -44,6 +44,7 @@ class ExecutorTest(unittest.TestCase):
     def test_driver_errors_are_wrapped_and_cursor_closed(self) -> None:
         """A driver exception becomes ExecutionError naming the command; nothing is committed."""
         conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
         executor = Executor(conn, "qmark")
         with self.assertRaises(ExecutionError) as ctx:
             executor.fetch(sql("SELECT * FROM missing"), command="query", limit=1)
@@ -53,6 +54,7 @@ class ExecutorTest(unittest.TestCase):
     def test_live_sqlite_and_no_commit(self) -> None:
         """Rows come back as tuples from a real connection and the fake never sees a commit."""
         conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
         conn.execute("CREATE TABLE t (a INTEGER)")
         conn.executemany("INSERT INTO t VALUES (?)", [(1,), (2,)])
         fetched = Executor(conn, "qmark").fetch(sql("SELECT a FROM t ORDER BY a"), command="query", limit=5)
