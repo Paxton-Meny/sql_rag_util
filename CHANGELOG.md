@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Relationship derivation from foreign keys with collision-free naming.
 - Executor: the single execution site, fetching limit plus one, closing cursors, never committing, firing the audit hook.
 - PostgreSQL dialect: ILIKE matching, udt-aware kinds, information_schema introspection, extension probe.
 - SQL Server dialect: bracket quoting, bound TOP, INFORMATION_SCHEMA introspection with partition row estimates.
