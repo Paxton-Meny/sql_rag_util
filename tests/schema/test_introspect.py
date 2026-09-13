@@ -17,7 +17,9 @@ class SqliteIntrospectTest(unittest.TestCase):
     """The fixture database introspects into the expected catalog."""
 
     def setUp(self) -> None:
-        self.catalog = introspect(Executor(build_fixture(), "qmark"), load("sqlite"))
+        conn = build_fixture()
+        self.addCleanup(conn.close)
+        self.catalog = introspect(Executor(conn, "qmark"), load("sqlite"))
 
     def test_tables_columns_and_keys(self) -> None:
         """Tables, kinds, nullability, and composite primary keys are read."""
@@ -42,7 +44,9 @@ class SqliteIntrospectTest(unittest.TestCase):
         names = {r.name for r in self.catalog.relationships_of(TableRef(None, "orders"))}
         self.assertEqual(names, {"customers_via_customer_id", "customers_via_billing_customer_id", "shipments"})
         self.assertIn(Capability.CASE_INSENSITIVE_LIKE, self.catalog.capabilities)
-        again = introspect(Executor(build_fixture(), "qmark"), load("sqlite"))
+        other = build_fixture()
+        self.addCleanup(other.close)
+        again = introspect(Executor(other, "qmark"), load("sqlite"))
         self.assertEqual(self.catalog.fingerprint, again.fingerprint)
         self.assertEqual(len(self.catalog.fingerprint), 16)
 
@@ -83,7 +87,9 @@ class FakeDriverIntrospectTest(unittest.TestCase):
 
     def test_fingerprint_ignores_estimates(self) -> None:
         """Only structure feeds the fingerprint."""
-        catalog = introspect(Executor(build_fixture(), "qmark"), load("sqlite"))
+        conn = build_fixture()
+        self.addCleanup(conn.close)
+        catalog = introspect(Executor(conn, "qmark"), load("sqlite"))
         self.assertEqual(fingerprint_of(catalog.tables, catalog.foreign_keys), catalog.fingerprint)
 
 

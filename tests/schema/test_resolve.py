@@ -17,7 +17,9 @@ class ResolveTest(unittest.TestCase):
     """Exact, then unique case-insensitive, then suggestions."""
 
     def setUp(self) -> None:
-        self.catalog = introspect(Executor(build_fixture(), "qmark"), load("sqlite"))
+        conn = build_fixture()
+        self.addCleanup(conn.close)
+        self.catalog = introspect(Executor(conn, "qmark"), load("sqlite"))
 
     def test_table_resolution(self) -> None:
         """Exact and case-folded names resolve; a typo raises with close matches."""
