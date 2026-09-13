@@ -29,6 +29,8 @@ _FUNCTION_TEXT = {
 
 def measure_sql(dialect: Dialect, plan: JoinPlan, measure: Measure) -> Statement:
     """Return ``FN(column) AS alias`` for ``measure``, with kind gates applied."""
+    if measure.fn is AggregateFn.MEASURE:
+        raise QuerySpecError(f"named measure {measure.column!r} was not expanded")
     alias = dialect.quote(measure.name)
     if measure.column is None:
         return sql(f"COUNT(*) AS {alias}")

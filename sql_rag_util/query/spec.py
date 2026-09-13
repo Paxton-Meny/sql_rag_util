@@ -49,6 +49,7 @@ class AggregateFn(enum.StrEnum):
     AVG = "avg"
     MIN = "min"
     MAX = "max"
+    MEASURE = "measure"
 
 
 _LIST_OPS = frozenset({FilterOp.IN, FilterOp.NOT_IN, FilterOp.BETWEEN})
@@ -124,8 +125,8 @@ class Measure:
         Result column name; defaults to ``fn`` or ``fn_column``.
     """
 
-    fn: AggregateFn = field(metadata={"description": "Aggregate function."})
-    column: str | None = field(default=None, metadata={"description": "Column or dotted path to aggregate; omit only for count."})
+    fn: AggregateFn = field(metadata={"description": "Aggregate function, or measure to apply a named measure from describe_table."})
+    column: str | None = field(default=None, metadata={"description": "Column or dotted path to aggregate; omit only for count. For fn measure, the measure name."})
     alias: str | None = field(default=None, metadata={"description": "Result name; defaults to fn or fn_column. Use it in order."})
 
     def __post_init__(self) -> None:
@@ -135,7 +136,7 @@ class Measure:
             raise QuerySpecError(f"unknown aggregate {self.fn!r}", suggestions=tuple(AggregateFn)) from None
         object.__setattr__(self, "fn", fn)
         if self.column is None and fn is not AggregateFn.COUNT:
-            raise QuerySpecError(f"{fn} needs a column")
+            raise QuerySpecError(f"{fn} needs a column" if fn is not AggregateFn.MEASURE else "measure needs the measure name in column")
         if self.column is not None:
             _check_path(self.column, "measure column")
         if self.alias is not None and not _ALIAS_PATTERN.match(self.alias):
