@@ -83,6 +83,22 @@ class PostgresDialect(Dialect):
         """Case-insensitive prefix match through ``ILIKE``."""
         return sql(f"{column_sql} ILIKE ") + bind(f"{escape_like(text)}%") + sql(f" ESCAPE '{LIKE_ESCAPE}'")
 
+    def soundex_match(self, column_sql: str, text: str) -> Statement:
+        """Compare Soundex codes from fuzzystrmatch."""
+        return sql(f"soundex({column_sql}) = soundex(") + bind(text) + sql(")")
+
+    def difference_at_least(self, column_sql: str, text: str, threshold: int) -> Statement:
+        """Use fuzzystrmatch's difference score, 0 to 4."""
+        return sql(f"difference({column_sql}, ") + bind(text) + sql(") >= ") + bind(threshold)
+
+    def levenshtein_within(self, column_sql: str, text: str, distance: int) -> Statement:
+        """Use the bounded levenshtein_less_equal from fuzzystrmatch."""
+        return sql(f"levenshtein_less_equal({column_sql}, ") + bind(text) + sql(", ") + bind(distance) + sql(") <= ") + bind(distance)
+
+    def trigram_at_least(self, column_sql: str, text: str, threshold: float) -> Statement:
+        """Use pg_trgm's similarity function, never the percent operator."""
+        return sql(f"similarity({column_sql}, ") + bind(text) + sql(") >= ") + bind(threshold)
+
     def default_schema_statement(self) -> Statement | None:
         """Return the first schema on the search path."""
         return sql("SELECT current_schema()")

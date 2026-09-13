@@ -82,6 +82,18 @@ class MssqlDialect(Dialect):
         """Use ``TOP (?)`` with the limit bound; it needs no ORDER BY, unlike OFFSET FETCH."""
         return sql("SELECT TOP (") + bind(limit) + sql(") ") + select_list + sql(" ") + body
 
+    def soundex_match(self, column_sql: str, text: str) -> Statement:
+        """Compare Soundex codes."""
+        return sql(f"SOUNDEX({column_sql}) = SOUNDEX(") + bind(text) + sql(")")
+
+    def difference_at_least(self, column_sql: str, text: str, threshold: int) -> Statement:
+        """Use the DIFFERENCE score, 0 to 4."""
+        return sql(f"DIFFERENCE({column_sql}, ") + bind(text) + sql(") >= ") + bind(threshold)
+
+    def fulltext(self, column_sql: str, text: str) -> Statement:
+        """Use FREETEXT, never CONTAINS, because CONTAINS interprets its argument."""
+        return sql(f"FREETEXT({column_sql}, ") + bind(text) + sql(")")
+
     def default_schema_statement(self) -> Statement | None:
         """Return the user's default schema."""
         return sql("SELECT SCHEMA_NAME()")

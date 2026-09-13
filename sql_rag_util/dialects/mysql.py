@@ -78,6 +78,10 @@ class MysqlDialect(Dialect):
         """Classify a ``COLUMN_TYPE`` value such as ``tinyint(1)`` or ``varchar(80)``."""
         return kind_from_prefixes(native_type, _KINDS)
 
+    def soundex_match(self, column_sql: str, text: str) -> Statement:
+        """Compare Soundex codes."""
+        return sql(f"SOUNDEX({column_sql}) = SOUNDEX(") + bind(text) + sql(")")
+
     def default_schema_statement(self) -> Statement | None:
         """Return the current database name."""
         return sql("SELECT DATABASE()")
