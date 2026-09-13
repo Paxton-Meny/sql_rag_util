@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Optional embedding index through a developer-supplied function, cached by version, and reciprocal rank fusion.
 - Opt-in value index of low-cardinality text columns with a fingerprint-keyed JSON cache, and question-to-value matching for schema linking.
 - The search_rows tool: word-level matching across searchable columns with contains plus the fuzzy strategies the connection supports; word-aware SQLite functions.
 - Retrieval tokenizer (case, underscore, plural folding, stopwords) and a BM25 index with weighted fields.
