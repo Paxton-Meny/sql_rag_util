@@ -18,6 +18,13 @@ class VersionTest(unittest.TestCase):
             with self.subTest(part=part):
                 self.assertTrue(part.isdigit())
 
+    def test_public_surface(self) -> None:
+        """The facade, config, spec types, base error, and SQLite registration are exported."""
+        for name in ("SqlRag", "Config", "Limits", "QuerySpec", "Filter", "Measure", "Order", "SqlRagError", "register_sqlite_functions"):
+            with self.subTest(name=name):
+                self.assertTrue(hasattr(sql_rag_util, name))
+                self.assertIn(name, sql_rag_util.__all__)
+
 
 if __name__ == "__main__":
     unittest.main()

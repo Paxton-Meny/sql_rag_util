@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Public exports from the package root, README usage for the SDK, agent frameworks, and the MCP server, toolkit section in the tool reference, version 0.1.0.
 - Design notes for every constraining decision under docs/design/.
 - Context-cost benchmark, regression caps on output sizes, and docs/context-cost.md.
 - Metadata toolkit tools (edit_table, edit_column, edit_relationship, edit_concept, edit_glossary) with validation against the catalog and agent provenance.
