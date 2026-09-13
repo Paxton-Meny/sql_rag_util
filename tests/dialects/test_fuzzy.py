@@ -9,6 +9,7 @@ from sql_rag_util.dialects import load
 from sql_rag_util.exceptions import CapabilityError
 from sql_rag_util.search.sqlite_functions import register_sqlite_functions
 from sql_rag_util.sql.render import render
+from sql_rag_util.sql.statement import sql
 
 
 class FuzzyPredicateTest(unittest.TestCase):
@@ -51,10 +52,10 @@ class FuzzyPredicateTest(unittest.TestCase):
         conn.execute("CREATE TABLE p (n TEXT)")
         conn.executemany("INSERT INTO p VALUES (?)", [("Ann Smith",), ("Bob Jones",)])
         dialect = load("sqlite")
-        text, params = render(dialect.soundex_match('"n"', "Smyth"), "qmark")
-        self.assertEqual(conn.execute(f"SELECT n FROM p WHERE {text}", params).fetchall(), [("Ann Smith",)])
-        text, params = render(dialect.levenshtein_within('"n"', "Jonas", 2), "qmark")
-        self.assertEqual(conn.execute(f"SELECT n FROM p WHERE {text}", params).fetchall(), [("Bob Jones",)])
+        by_sound = sql('SELECT n FROM p WHERE ') + dialect.soundex_match('"n"', "Smyth")
+        self.assertEqual(conn.execute(*render(by_sound, "qmark")).fetchall(), [("Ann Smith",)])
+        by_distance = sql('SELECT n FROM p WHERE ') + dialect.levenshtein_within('"n"', "Jonas", 2)
+        self.assertEqual(conn.execute(*render(by_distance, "qmark")).fetchall(), [("Bob Jones",)])
 
 
 if __name__ == "__main__":
