@@ -80,9 +80,9 @@ class Filter:
         an integer for ``since_days``, or ``None`` for the null tests.
     """
 
-    column: str
-    op: FilterOp
-    value: JsonScalar | tuple[JsonScalar, ...] = None
+    column: str = field(metadata={"description": "Column name, or a dotted path through relationships such as customer.region."})
+    op: FilterOp = field(metadata={"description": "Operator. contains and starts_with match text case-insensitively where the database allows; since_days keeps rows from the last N days."})
+    value: JsonScalar | tuple[JsonScalar, ...] = field(default=None, metadata={"description": "One scalar; a list for in, not_in, and between (two values); an integer for since_days; omitted for is_null and not_null."})
 
     def __post_init__(self) -> None:
         _check_path(self.column, "filter column")
@@ -124,9 +124,9 @@ class Measure:
         Result column name; defaults to ``fn`` or ``fn_column``.
     """
 
-    fn: AggregateFn
-    column: str | None = None
-    alias: str | None = None
+    fn: AggregateFn = field(metadata={"description": "Aggregate function."})
+    column: str | None = field(default=None, metadata={"description": "Column or dotted path to aggregate; omit only for count."})
+    alias: str | None = field(default=None, metadata={"description": "Result name; defaults to fn or fn_column. Use it in order."})
 
     def __post_init__(self) -> None:
         try:
@@ -155,8 +155,8 @@ class Measure:
 class Order:
     """One ordering term by column path or measure alias."""
 
-    by: str
-    direction: Literal["asc", "desc"] = "asc"
+    by: str = field(metadata={"description": "Column path or measure alias to sort by."})
+    direction: Literal["asc", "desc"] = field(default="asc", metadata={"description": "asc or desc."})
 
     def __post_init__(self) -> None:
         _check_path(self.by, "order term")
@@ -168,15 +168,15 @@ class Order:
 class QuerySpec:
     """A complete read request. See ``docs/agent-tools.md`` for the idioms."""
 
-    table: str
-    columns: tuple[str, ...] | None = None
-    filters: tuple[Filter, ...] = ()
-    concepts: tuple[str, ...] = ()
-    group_by: tuple[str, ...] = ()
-    measures: tuple[Measure, ...] = ()
-    order: tuple[Order, ...] = ()
-    limit: int | None = None
-    format: Literal["json", "compact"] = "json"
+    table: str = field(metadata={"description": "Table to read, as named by list_tables or get_context."})
+    columns: tuple[str, ...] | None = field(default=None, metadata={"description": "Columns to return, bare or dotted through relationships (customer.name joins automatically). Omit for every visible column."})
+    filters: tuple[Filter, ...] = field(default=(), metadata={"description": "Predicates AND-ed together."})
+    concepts: tuple[str, ...] = field(default=(), metadata={"description": "Named filters from describe_table, AND-ed in."})
+    group_by: tuple[str, ...] = field(default=(), metadata={"description": "Columns to group by; returns one row per distinct combination. Cannot combine with columns."})
+    measures: tuple[Measure, ...] = field(default=(), metadata={"description": "Aggregates. count alone gives a total; with group_by it gives per-group counts."})
+    order: tuple[Order, ...] = field(default=(), metadata={"description": "Sort terms. Default: primary key, or the first measure descending when grouped."})
+    limit: int | None = field(default=None, metadata={"description": "Maximum rows; default 50, hard cap 500. Narrow with filters rather than raising it."})
+    format: Literal["json", "compact"] = field(default="json", metadata={"description": "json for columns plus rows arrays; compact for a tab-separated text table."})
     names: tuple[str, ...] = field(default=(), init=False, repr=False)
 
     def __post_init__(self) -> None:
