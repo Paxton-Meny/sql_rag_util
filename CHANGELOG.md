@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- MySQL and MariaDB dialect: backtick quoting, COLUMN_TYPE kinds, information_schema introspection.
 - SQLite dialect: declared-type and affinity kinds, bound pragma table-valued introspection, function probe.
 - Driver detection and a lazy dialect registry with aliases.
 - Dialect contract and capability names.
