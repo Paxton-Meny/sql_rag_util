@@ -15,6 +15,8 @@ from sql_rag_util.schema.model import ColumnKind
 from sql_rag_util.sql.statement import Statement, bind, sql
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from sql_rag_util.schema.model import TableRef
 
 __all__ = ["Dialect", "LIKE_ESCAPE", "escape_like", "kind_from_prefixes"]
@@ -104,9 +106,18 @@ class Dialect(ABC):
     def foreign_keys_statement(self, ref: TableRef) -> Statement:
         """Return a statement yielding ``(constraint, position, column, ref_schema, ref_table, ref_column)`` rows."""
 
-    def capability_probe_statement(self) -> Statement | None:
-        """Return a statement yielding one capability name per row, or ``None``."""
+    def default_schema_statement(self) -> Statement | None:
+        """Return a statement yielding the connection's default schema name, or ``None``."""
         return None
+
+    def capability_probe_statement(self) -> Statement | None:
+        """Return a statement yielding one feature name per row, or ``None``."""
+        return None
+
+    def probe_capabilities(self, names: Iterable[str]) -> frozenset[str]:
+        """Map the names a probe returned to capability values."""
+        known = {c.value for c in Capability}
+        return frozenset(n for n in names if n in known)
 
     def _refuse(self, capability: Capability) -> CapabilityError:
         return CapabilityError(f"{self.name} does not support {capability}")

@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- SQLite dialect: declared-type and affinity kinds, bound pragma table-valued introspection, function probe.
 - Driver detection and a lazy dialect registry with aliases.
 - Dialect contract and capability names.
 - Statement model (fragments plus binds) and a renderer for every PEP 249 paramstyle.
