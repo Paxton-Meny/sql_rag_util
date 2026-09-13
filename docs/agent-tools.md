@@ -42,6 +42,10 @@ The compact form is a heading line, the description, one line of columns separat
 
 `{question, budget_tokens?, format?}`. Returns ranked short cards for the tables that matter, `value_hits` (`column`, `value`, `matched`), matching `concepts` and `glossary` entries, within the budget.
 
+## Toolkit (full tier, writes enabled)
+
+`edit_table {table, purpose?, description?, synonyms?}`, `edit_column {table, column, text, values?, synonyms?, searchable?}`, `edit_relationship {table, name, text}`, `edit_concept {table, name, text, where}`, `edit_glossary {term, definition, synonyms?, tables?}`. Each edit is validated against the catalog before it is written canonically; column edits carry `source: agent, <date>`. The toolkit never sets or clears `sensitive` and `hidden`.
+
 ## Cost
 
-Sizes are measured on the fixture in `tests/support/fixture.py` and capped by tests; see `docs/context-cost.md` once the benchmark lands.
+Sizes are measured on the fixture in `tests/support/fixture.py`, capped by `tests/test_cost.py`, and recorded in `docs/context-cost.md`.
