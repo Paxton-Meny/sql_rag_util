@@ -21,9 +21,9 @@ class ToolsTest(unittest.TestCase):
         self.engine = SqlRag(conn, metadata_root=FIXTURES, config=Config(reveal_sql=True))
 
     def test_tool_specs_by_tier(self) -> None:
-        """minimal exposes query only; standard adds describe and list; schemas derive."""
-        self.assertEqual([s.name for s in self.engine.tool_specs(tier="minimal")], ["query"])
-        self.assertEqual([s.name for s in self.engine.tool_specs()], ["query", "describe_table", "list_tables", "search_rows"])
+        """minimal exposes get_context and query; standard adds describe, list, and search; schemas derive."""
+        self.assertEqual([s.name for s in self.engine.tool_specs(tier="minimal")], ["get_context", "query"])
+        self.assertEqual([s.name for s in self.engine.tool_specs()], ["get_context", "query", "describe_table", "list_tables", "search_rows"])
         for spec in self.engine.tool_specs():
             with self.subTest(tool=spec.name):
                 self.assertEqual(spec.input_schema()["type"], "object")
@@ -42,7 +42,7 @@ class ToolsTest(unittest.TestCase):
         self.assertEqual((revenue["columns"], revenue["rows"][0]), (["customer.region", "revenue"], ["north", 269.99]))
         empty = self.engine.dispatch("query", {"table": "orders", "filters": [{"column": "status", "op": "eq", "value": "opne"}]})
         self.assertEqual(empty["rows"], [])
-        self.assertTrue(empty["notes"][0].startswith("0 rows"))
+        self.assertIn("opne", empty["notes"][0])
         text = self.engine.dispatch_text("query", {"table": "orders", "columns": ["id", "status"], "limit": 2})
         self.assertTrue(text.startswith("id\tstatus\n10\topen\n11\tpaid\nnote: result truncated"))
 

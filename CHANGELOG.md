@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- The get_context tool: BM25, value hits, optional embeddings fused by rank, one-hop expansion, token-budgeted cards; empty-result diagnosis from known values; engine cache_dir and retriever.
 - Framework adapters: Anthropic, OpenAI strict, and MCP tool definitions plus MCP call results from one ToolSpec.
 - Optional embedding index through a developer-supplied function, cached by version, and reciprocal rank fusion.
 - Opt-in value index of low-cardinality text columns with a fingerprint-keyed JSON cache, and question-to-value matching for schema linking.
