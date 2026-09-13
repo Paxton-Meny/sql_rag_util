@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Architecture overview and threat model under `docs/`.
 - Repository scaffolding: license, contribution guide, security policy, issue and pull request templates, pre-commit gate, package and test skeleton.
 
 [Unreleased]: https://github.com/Paxton-Meny/sql_rag_util/commits/main
