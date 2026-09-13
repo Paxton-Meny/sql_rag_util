@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Argument building from JSON, the tool registry with tiers and mutation gating, and the dispatcher with JSON and compact envelopes.
 - Tool specs with tiers and JSON Schema derivation from argument dataclasses; every query spec field now carries the description agents read.
 - Catalog annotation: metadata validated against the catalog, relationship renames and declared relationships applied, column policy, concepts and measures, schema version hash.
 - Metadata store with root containment, whole-directory load, and atomic saves.

@@ -26,6 +26,8 @@ __all__ = [
     "MetadataFormatError",
     "MetadataPathError",
     "ToolSpecError",
+    "UnknownToolError",
+    "ArgumentError",
     "StatementError",
     "ExecutionError",
 ]
@@ -135,6 +137,14 @@ class MetadataPathError(MetadataError):
 
 class ToolSpecError(SqlRagError):
     """A command's argument type cannot be turned into a tool definition."""
+
+
+class UnknownToolError(SqlRagError):
+    """A dispatched tool name is not registered or not in the exposed tier."""
+
+
+class ArgumentError(SqlRagError):
+    """Tool arguments do not fit the tool's schema."""
 
 
 class StatementError(SqlRagError):
