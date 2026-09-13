@@ -65,7 +65,7 @@ orders keep their rows.
 - status: Lifecycle state.
   - values: open, paid, shipped, cancelled
   - synonyms: state, stage
-- email [searchable, sensitive]: Contact address at the time of the order.
+- email [sensitive]: Contact address at the time of the order.
 - internal_notes [hidden]: Staff notes.
 - shipping_name [searchable]: Recipient name as printed on the label.
   - source: agent, 2026-09-13
@@ -103,7 +103,7 @@ Bullet grammar: `- <name>[ [<flag>, ...]]: <text>`. The name must be a column of
 | `hidden` | Absent from every output and every predicate |
 | `fulltext` | A full-text index exists on this column; enables the dialect's full-text strategy |
 
-`sensitive` and `hidden` together is an error. `searchable` with `hidden` is an error. Sub-bullets: `values:` (a list of the meaningful values, shown in cards), `synonyms:` (a list), `source:` (`agent, YYYY-MM-DD` or `developer`; absent means developer).
+`searchable`, `sensitive`, and `hidden` are mutually exclusive. Sub-bullets: `values:` (a list of the meaningful values, shown in cards), `synonyms:` (a list), `source:` (`agent, YYYY-MM-DD` or `developer`; absent means developer).
 
 ### Relationships
 

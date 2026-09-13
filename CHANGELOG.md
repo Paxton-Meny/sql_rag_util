@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Catalog annotation: metadata validated against the catalog, relationship renames and declared relationships applied, column policy, concepts and measures, schema version hash.
 - Metadata store with root containment, whole-directory load, and atomic saves.
 - Canonical metadata writer and an atomic text write helper; fixtures round-trip byte for byte.
 - Per-file metadata parsers for tables, project, relationships, and glossary, with JSON concepts and measures validated through the query spec.

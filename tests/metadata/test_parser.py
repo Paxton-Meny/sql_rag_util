@@ -39,7 +39,7 @@ class ParseTableTest(unittest.TestCase):
     def test_customers_fixture_flags(self) -> None:
         """Flag combinations parse and optional sections may be absent."""
         meta = parse_table(_read("tables", "customers.md"), "tables/customers.md", "customers")
-        self.assertEqual(meta.column("email").flags, frozenset({"searchable", "sensitive"}))
+        self.assertEqual(meta.column("email").flags, frozenset({"sensitive"}))
         self.assertEqual(meta.concepts, ())
 
     def test_rejections(self) -> None:
@@ -52,6 +52,7 @@ class ParseTableTest(unittest.TestCase):
             base + "\n## Extra\n": 6,
             base + "\n## Columns\n\n- a [secret]: x\n": 8,
             base + "\n## Columns\n\n- a [hidden, sensitive]: x\n": 8,
+            base + "\n## Columns\n\n- a [searchable, sensitive]: x\n": 8,
             base + "\n## Columns\n\n- a: x\n  - nope: 1\n": 9,
             base + "\n## Concepts\n\n- Active: x\n  - where: []\n": 8,
             base + "\n## Concepts\n\n- active: x\n": 8,

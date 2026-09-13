@@ -40,8 +40,8 @@ def _columns(doc: Document, lines: list[tuple[int, str]]) -> tuple[ColumnMeta, .
             if flag not in COLUMN_FLAGS:
                 raise doc.fail(f"unknown flag {flag!r}; allowed: {', '.join(sorted(COLUMN_FLAGS))}", b.line)
         flags = frozenset(b.flags)
-        if {"sensitive", "hidden"} <= flags or {"searchable", "hidden"} <= flags:
-            raise doc.fail("hidden cannot combine with sensitive or searchable", b.line)
+        if len(flags & {"searchable", "sensitive", "hidden"}) > 1:
+            raise doc.fail("searchable, sensitive, and hidden are mutually exclusive", b.line)
         only_subs(doc, b, ("values", "synonyms", "source"))
         source = b.subs.get("source", (None, 0))[0]
         out.append(ColumnMeta(b.name, b.text, flags, list_value(b.subs.get("values", ("", 0))[0]), list_value(b.subs.get("synonyms", ("", 0))[0]), source))
