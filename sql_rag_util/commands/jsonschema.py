@@ -34,9 +34,10 @@ def _schema(annotation: object, owner: str) -> dict[str, object]:
         members = [_schema(a, owner) for a in args]
         simple = list(dict.fromkeys(str(m["type"]) for m in members if _is_simple(m)))
         complex_members = [m for m in members if not _is_simple(m)]
+        simple_schema: dict[str, object] = {"type": simple[0] if len(simple) == 1 else simple}
         if not complex_members:
-            return {"type": simple}
-        return {"anyOf": ([{"type": simple}] if simple else []) + complex_members}
+            return simple_schema
+        return {"anyOf": ([simple_schema] if simple else []) + complex_members}
     if origin is tuple:
         if len(args) != 2 or args[1] is not Ellipsis:
             raise ToolSpecError(f"{owner}: only tuple[X, ...] is supported, got {annotation!r}")

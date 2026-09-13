@@ -23,7 +23,7 @@ class ToolsTest(unittest.TestCase):
     def test_tool_specs_by_tier(self) -> None:
         """minimal exposes query only; standard adds describe and list; schemas derive."""
         self.assertEqual([s.name for s in self.engine.tool_specs(tier="minimal")], ["query"])
-        self.assertEqual([s.name for s in self.engine.tool_specs()], ["query", "describe_table", "list_tables"])
+        self.assertEqual([s.name for s in self.engine.tool_specs()], ["query", "describe_table", "list_tables", "search_rows"])
         for spec in self.engine.tool_specs():
             with self.subTest(tool=spec.name):
                 self.assertEqual(spec.input_schema()["type"], "object")

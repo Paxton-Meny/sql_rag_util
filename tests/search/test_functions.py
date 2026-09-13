@@ -63,14 +63,16 @@ class RegistrationTest(unittest.TestCase):
     """Registered functions run inside SQLite and show up in the function list."""
 
     def test_register(self) -> None:
-        """soundex and levenshtein are callable from SQL after registration."""
+        """The word-aware functions are callable from SQL after registration."""
         conn = sqlite3.connect(":memory:")
         self.addCleanup(conn.close)
         register_sqlite_functions(conn)
-        self.assertEqual(conn.execute("SELECT soundex('Smyth') = soundex('Smith')").fetchone()[0], 1)
-        self.assertEqual(conn.execute("SELECT levenshtein('Jon', 'John')").fetchone()[0], 1)
-        names = {r[0] for r in conn.execute("SELECT name FROM pragma_function_list WHERE name IN ('soundex', 'levenshtein')")}
-        self.assertEqual(names, {"soundex", "levenshtein"})
+        self.assertEqual(conn.execute("SELECT sqlrag_soundex_any('Jon Smyth', 'Smith')").fetchone()[0], 1)
+        self.assertEqual(conn.execute("SELECT sqlrag_soundex_any('Jon Smyth', 'Zed')").fetchone()[0], 0)
+        self.assertEqual(conn.execute("SELECT sqlrag_levenshtein_min('Jon Smyth', 'john')").fetchone()[0], 1)
+        self.assertEqual(conn.execute("SELECT sqlrag_levenshtein_min(NULL, 'x') > 100").fetchone()[0], 1)
+        names = {r[0] for r in conn.execute("SELECT name FROM pragma_function_list WHERE name IN ('sqlrag_soundex_any', 'sqlrag_levenshtein_min')")}
+        self.assertEqual(names, {"sqlrag_soundex_any", "sqlrag_levenshtein_min"})
 
 
 if __name__ == "__main__":

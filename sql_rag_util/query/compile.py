@@ -16,6 +16,8 @@ from sql_rag_util.schema.resolve import resolve_table
 from sql_rag_util.sql.statement import Statement, join, sql
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sql_rag_util.config import Limits
     from sql_rag_util.dialects.base import Dialect
     from sql_rag_util.query.policy import ColumnPolicy
@@ -98,13 +100,23 @@ def _select_aggregate(dialect: Dialect, plan: JoinPlan, spec: QuerySpec, limits:
     return items, names, group_sql
 
 
-def _where(dialect: Dialect, plan: JoinPlan, filters: tuple[Filter, ...], limits: Limits, now: dt.datetime | None) -> Statement | None:
-    if not filters:
-        return None
+def _where(
+    dialect: Dialect,
+    plan: JoinPlan,
+    filters: tuple[Filter, ...],
+    limits: Limits,
+    now: dt.datetime | None,
+    extra_predicate: Callable[[JoinPlan], Statement | None] | None,
+) -> Statement | None:
     predicates = []
     for flt in filters:
         resolved = plan.resolve(flt.column)
         predicates.append(build_predicate(dialect, plan.column_sql(dialect, resolved), resolved.column, flt, max_in_values=limits.max_in_values, now=now))
+    extra = extra_predicate(plan) if extra_predicate is not None else None
+    if extra is not None and not extra.is_empty:
+        predicates.append(extra)
+    if not predicates:
+        return None
     return sql("WHERE ") + join(" AND ", (sql("(") + p + sql(")") for p in predicates))
 
 
@@ -137,6 +149,7 @@ def compile_query(
     *,
     extra_filters: tuple[Filter, ...] = (),
     now: dt.datetime | None = None,
+    extra_predicate: Callable[[JoinPlan], Statement | None] | None = None,
 ) -> Compiled:
     """Return the single statement for ``spec``.
 
@@ -146,6 +159,9 @@ def compile_query(
         Developer scope and concept predicates, AND-ed with the spec's own.
     now
         Reference time for ``since_days``; defaults to the current UTC time.
+    extra_predicate
+        Builder for one more predicate, given the join plan so it can resolve
+        columns; used by row search.
     """
     if len(spec.filters) > limits.max_filters:
         raise LimitExceededError(f"at most {limits.max_filters} filters per query")
@@ -159,7 +175,7 @@ def compile_query(
         items, names, group_sql = _select_aggregate(dialect, plan, spec, limits)
     else:
         items, names = _select_rows(dialect, plan, spec, limits, notes)
-    where = _where(dialect, plan, spec.filters + extra_filters, limits, now)
+    where = _where(dialect, plan, spec.filters + extra_filters, limits, now, extra_predicate)
     order = _order(dialect, plan, spec, group_sql)
     body = plan.from_clause(dialect)
     if where is not None:

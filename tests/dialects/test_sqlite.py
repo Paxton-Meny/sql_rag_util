@@ -50,12 +50,12 @@ class SqliteDialectTest(unittest.TestCase):
         fks = conn.execute(*render(self.dialect.foreign_keys_statement(TableRef(None, "kids")), "qmark")).fetchall()
         self.assertEqual(fks, [(0, 0, "parent_id", None, "parents", None)])
         probe = conn.execute(*render(self.dialect.capability_probe_statement(), "qmark")).fetchall()
-        self.assertTrue(set(probe) <= {('soundex',), ('levenshtein',)}, probe)
+        self.assertEqual(probe, [])
 
     def test_probe_maps_registered_functions(self) -> None:
         """Function names from the probe map to capabilities; unknown names are ignored."""
         self.assertEqual(
-            self.dialect.probe_capabilities(["SOUNDEX", "levenshtein", "other"]),
+            self.dialect.probe_capabilities(["sqlrag_soundex_any", "sqlrag_levenshtein_min", "other"]),
             frozenset({Capability.SOUNDEX, Capability.LEVENSHTEIN}),
         )
         self.assertIn(Capability.CASE_INSENSITIVE_LIKE, self.dialect.static_capabilities)
