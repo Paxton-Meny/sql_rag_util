@@ -21,7 +21,7 @@ This is the normative specification of the per-project metadata that sql_rag_uti
 - Every file starts with a level-one heading followed by a blank line and then `format: 1`. Any other version is an error.
 - Header keys are `key: value` lines that follow `format:` without a blank line between them. Unknown keys are errors.
 - Sections are level-two headings from the fixed set for that file. Unknown sections are errors. A section may appear at most once. Order does not matter.
-- Bullets are `- ` at column zero. Sub-bullets are `  - ` indented two spaces. A bullet's text may continue on following lines indented two spaces.
+- Bullets are `- ` at column zero. Sub-bullets are `  - ` indented two spaces. A bullet's or sub-bullet's text may continue on following lines indented by two or more spaces.
 - Prose sections hold plain paragraphs. Nothing in them is interpreted.
 - A value that is a list is comma separated. Whitespace around items is trimmed. An item that needs a comma is not supported.
 
@@ -141,12 +141,14 @@ Each level-two heading is a declared relationship name. Keys: `from` and `to` as
 
 format: 1
 
+## Terms
+
 - SKU: Stock keeping unit, the product identifier printed on labels.
   - synonyms: product code, item number
   - tables: products, order_lines
 ```
 
-Bullet grammar: `- <term>: <definition>`. Sub-bullets: `synonyms:` (a list) and `tables:` (a list of tables the term relates to, used for retrieval). Terms are unique case-insensitively.
+The single section is `Terms`. Bullet grammar: `- <term>: <definition>`. Sub-bullets: `synonyms:` (a list) and `tables:` (a list of tables the term relates to, used for retrieval). Terms are unique case-insensitively.
 
 ## Provenance
 
