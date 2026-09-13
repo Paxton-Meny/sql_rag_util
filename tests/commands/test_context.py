@@ -57,7 +57,9 @@ class GetContextTest(unittest.TestCase):
         self.assertIn("nearest known values: open", result["notes"][0])
         unknown = self.engine.dispatch("query", {"table": "orders", "filters": [{"column": "status", "op": "in", "value": ["zzz"]}]})
         self.assertIn("known values: open, paid, shipped, cancelled", unknown["notes"][0])
-        quiet = SqlRag(build_fixture(), metadata_root=pathlib.Path(self.tmp.name) / "meta", config=Config(diagnose_empty_results=False))
+        other = build_fixture()
+        self.addCleanup(other.close)
+        quiet = SqlRag(other, metadata_root=pathlib.Path(self.tmp.name) / "meta", config=Config(diagnose_empty_results=False))
         plain = quiet.dispatch("query", {"table": "orders", "filters": [{"column": "status", "op": "eq", "value": "opne"}]})
         self.assertTrue(plain["notes"][0].startswith("0 rows"))
 

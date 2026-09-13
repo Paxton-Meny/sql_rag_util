@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Context-cost benchmark, regression caps on output sizes, and docs/context-cost.md.
 - Metadata toolkit tools (edit_table, edit_column, edit_relationship, edit_concept, edit_glossary) with validation against the catalog and agent provenance.
 - MCP stdio server in the standard library with a SQLite entry point: python -m sql_rag_util.mcp --sqlite app.db.
 - The get_context tool: BM25, value hits, optional embeddings fused by rank, one-hop expansion, token-budgeted cards; empty-result diagnosis from known values; engine cache_dir and retriever.
