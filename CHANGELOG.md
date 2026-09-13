@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- Tool specs with tiers and JSON Schema derivation from argument dataclasses; every query spec field now carries the description agents read.
 - Catalog annotation: metadata validated against the catalog, relationship renames and declared relationships applied, column policy, concepts and measures, schema version hash.
 - Metadata store with root containment, whole-directory load, and atomic saves.
 - Canonical metadata writer and an atomic text write helper; fixtures round-trip byte for byte.
