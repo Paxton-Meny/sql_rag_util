@@ -34,6 +34,7 @@ class SqliteDialectTest(unittest.TestCase):
     def test_statements_run_live(self) -> None:
         """Introspection statements execute on sqlite3 and return the documented shapes."""
         conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
         conn.executescript(
             "CREATE TABLE parents (id INTEGER PRIMARY KEY, name TEXT NOT NULL);"
             "CREATE TABLE kids (id INTEGER, tenant INTEGER, parent_id INTEGER REFERENCES parents,"
