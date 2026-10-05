@@ -39,7 +39,8 @@ class AnnotatedCatalog:
     Parameters
     ----------
     catalog
-        Catalog with renamed and declared relationships.
+        The agent's view: renamed and declared relationships applied, hidden
+        columns removed, along with any primary key or foreign key they take part in.
     metadata
         The metadata as parsed.
     policy
@@ -55,7 +56,7 @@ class AnnotatedCatalog:
     measures
         Measures by ref and name.
     version
-        Hash over catalog structure and metadata, exposed as ``schema_version``.
+        Hash over the full catalog structure and metadata, exposed as ``schema_version``.
     """
 
     catalog: Catalog
@@ -141,6 +142,22 @@ def _validate_rules(dialect: Dialect, catalog: Catalog, policy: ColumnPolicy, ta
             raise _fail(meta.table, f"measure {measure.name!r}: {exc}") from None
 
 
+def _without_hidden(table: TableInfo, hidden: frozenset[str]) -> TableInfo:
+    columns = tuple(c for c in table.columns if c.name not in hidden)
+    if hidden & set(table.primary_key):
+        columns = tuple(replace(c, pk_position=None) for c in columns)
+    return replace(table, columns=columns)
+
+
+def _agent_catalog(catalog: Catalog, policy: ColumnPolicy) -> Catalog:
+    tables = tuple(_without_hidden(t, policy.hidden.get(t.ref, frozenset())) for t in catalog.tables)
+    foreign_keys = tuple(
+        fk for fk in catalog.foreign_keys
+        if not any(policy.is_hidden(fk.table, c) for c in fk.columns) and not any(policy.is_hidden(fk.referenced, c) for c in fk.referenced_columns)
+    )
+    return replace(catalog, tables=tables, foreign_keys=foreign_keys)
+
+
 def _version(catalog: Catalog, metadata: Metadata) -> str:
     text = catalog.fingerprint + render_project(metadata.project) + render_relationships(metadata.relationships) + render_glossary(metadata.glossary)
     text += "".join(render_table(t) for t in metadata.tables)
@@ -184,6 +201,8 @@ def annotate(catalog: Catalog, metadata: Metadata, dialect: Dialect, *, max_join
                 searchable_names.append(info.name)
             if "fulltext" in column.flags:
                 fulltext_names.add(info.name)
+        if len(hidden_names) == len(table.columns):
+            raise _fail(meta.table, f"every column of {table.ref.qualified} is hidden; leave the table out of scope instead")
         hidden[table.ref], sensitive[table.ref] = frozenset(hidden_names), frozenset(sensitive_names)
         searchable[table.ref], fulltext[table.ref] = tuple(searchable_names), frozenset(fulltext_names)
     for entry in metadata.glossary:
@@ -194,8 +213,9 @@ def annotate(catalog: Catalog, metadata: Metadata, dialect: Dialect, *, max_join
                 raise MetadataFormatError(f"{entry.term}: {exc}", path="glossary.md") from None
     policy = ColumnPolicy(hidden, sensitive)
     merged = _apply_relationships(catalog, metadata)
+    agent = _agent_catalog(merged, policy)
     concepts = {ref: {c.name: c for c in meta.concepts} for ref, meta in table_meta.items()}
     measures = {ref: {m.name: m for m in meta.measures} for ref, meta in table_meta.items()}
     for ref, meta in table_meta.items():
-        _validate_rules(dialect, merged, policy, merged.table(ref), meta, max_join_depth)  # type: ignore[arg-type]
-    return AnnotatedCatalog(merged, metadata, policy, table_meta, searchable, fulltext, concepts, measures, _version(merged, metadata))
+        _validate_rules(dialect, agent, policy, agent.table(ref), meta, max_join_depth)  # type: ignore[arg-type]
+    return AnnotatedCatalog(agent, metadata, policy, table_meta, searchable, fulltext, concepts, measures, _version(merged, metadata))

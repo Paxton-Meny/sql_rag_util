@@ -38,7 +38,7 @@ def agent_name(catalog: Catalog, ref: TableRef) -> str:
     return ref.name if len(same) == 1 else ref.qualified
 
 
-def _pick(name: str, items: Iterable[tuple[str, object]], error: Callable[[str, tuple[str, ...]], Exception], what: str) -> object:
+def _pick(name: str, items: Iterable[tuple[str, object]], error: Callable[[str, tuple[str, ...]], Exception], what: str, where: str = "") -> object:
     pairs = list(items)
     for key, item in pairs:
         if key == name:
@@ -48,7 +48,7 @@ def _pick(name: str, items: Iterable[tuple[str, object]], error: Callable[[str, 
         return folded[0]
     suggestions = closest(name, (key for key, _ in pairs))
     hint = f"; did you mean {', '.join(suggestions)}?" if suggestions else ""
-    raise error(f"unknown {what} {name!r}{hint}", suggestions)
+    raise error(f"unknown {what} {name!r}{where}{hint}", suggestions)
 
 
 def resolve_table(catalog: Catalog, name: str) -> TableInfo:
@@ -61,10 +61,10 @@ def resolve_table(catalog: Catalog, name: str) -> TableInfo:
 def resolve_column(table: TableInfo, name: str) -> ColumnInfo:
     """Return the column of ``table`` called ``name``."""
     items = [(c.name, c) for c in table.columns]
-    return _pick(name, items, lambda m, s: UnknownColumnError(f"{m} on table {table.ref.qualified}", suggestions=s), "column")  # type: ignore[return-value]
+    return _pick(name, items, lambda m, s: UnknownColumnError(m, suggestions=s), "column", f" on table {table.ref.qualified}")  # type: ignore[return-value]
 
 
 def resolve_relationship(catalog: Catalog, table: TableInfo, name: str) -> Relationship:
     """Return the relationship navigated from ``table`` called ``name``."""
     items = [(r.name, r) for r in catalog.relationships_of(table.ref)]
-    return _pick(name, items, lambda m, s: UnknownRelationshipError(f"{m} on table {table.ref.qualified}", suggestions=s), "relationship")  # type: ignore[return-value]
+    return _pick(name, items, lambda m, s: UnknownRelationshipError(m, suggestions=s), "relationship", f" on table {table.ref.qualified}")  # type: ignore[return-value]

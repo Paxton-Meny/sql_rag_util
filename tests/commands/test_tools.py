@@ -51,8 +51,24 @@ class ToolsTest(unittest.TestCase):
         self.assertEqual(self.engine.dispatch("query", {"table": "ordr"})["error"]["suggestions"], ["orders"])
         self.assertEqual(self.engine.dispatch("query", {"table": "orders", "concepts": ["archived"]})["error"]["type"], "UnknownConceptError")
         self.assertEqual(self.engine.dispatch("query", {"table": "orders", "measures": [{"fn": "measure", "column": "profit"}]})["error"]["suggestions"], ["revenue", "order_count"])
-        self.assertEqual(self.engine.dispatch("query", {"table": "orders", "columns": ["notes"]})["error"]["type"], "SensitiveColumnError")
+        self.assertEqual(self.engine.dispatch("query", {"table": "orders", "columns": ["notes"]})["error"]["type"], "UnknownColumnError")
         self.assertEqual(self.engine.dispatch("query", {"table": "customers", "filters": [{"column": "email", "op": "eq", "value": "x"}]})["error"]["type"], "SensitiveColumnError")
+
+    def test_hidden_columns_are_indistinguishable_from_missing_ones(self) -> None:
+        """A hidden name errors exactly as a missing name does in every position, and is never suggested."""
+        specs = {
+            "columns": lambda c: {"columns": [c]},
+            "filters": lambda c: {"filters": [{"column": c, "op": "eq", "value": "x"}]},
+            "order": lambda c: {"order": [{"by": c}]},
+            "group_by": lambda c: {"group_by": [c], "measures": [{"fn": "count"}]},
+        }
+        for position, spec in specs.items():
+            with self.subTest(position=position):
+                hidden = self.engine.dispatch("query", {"table": "customers", **spec("password_hash")})["error"]
+                missing = self.engine.dispatch("query", {"table": "customers", **spec("password_salt")})["error"]
+                self.assertEqual(hidden, {**missing, "message": missing["message"].replace("password_salt", "password_hash")})
+                typo = self.engine.dispatch("query", {"table": "customers", **spec("password_hsh")})["error"]
+                self.assertNotIn("password_hash", str(typo))
 
     def test_describe_and_list(self) -> None:
         """describe_table returns the card; list_tables one summary per table."""

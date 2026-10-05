@@ -96,7 +96,7 @@ class UnknownMeasureError(SqlRagError):
 
 
 class SensitiveColumnError(SqlRagError):
-    """A sensitive or hidden column was used where it is not allowed."""
+    """A sensitive column was used where it is not allowed."""
 
 
 class QuerySpecError(SqlRagError):

@@ -48,6 +48,12 @@ class ToolkitTest(unittest.TestCase):
         card = self.engine.dispatch("describe_table", {"table": "orders"})
         self.assertEqual(next(c for c in card["columns"] if c["name"] == "amount")["text"], "Order total in the customer's currency.")
 
+    def test_hidden_columns_cannot_be_edited(self) -> None:
+        """An agent cannot address a hidden column, and the file keeps its flag."""
+        error = self.engine.dispatch("edit_column", {"table": "orders", "column": "notes", "text": "x", "searchable": True}, tier="full")["error"]
+        self.assertEqual((error["type"], error["suggestions"]), ("UnknownColumnError", []))
+        self.assertIn("- notes [hidden]: Staff notes.", (self.root / "tables" / "orders.md").read_text())
+
     def test_new_table_needs_purpose_and_protected_flags_hold(self) -> None:
         """Describing a new table starts with edit_table; sensitive and hidden cannot be made searchable."""
         self.assertEqual(self.engine.dispatch("edit_column", {"table": "shipments", "column": "carrier", "text": "x"}, tier="full")["error"]["type"], "QuerySpecError")

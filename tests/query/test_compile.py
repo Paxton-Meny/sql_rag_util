@@ -7,7 +7,7 @@ import unittest
 
 from sql_rag_util.config import Limits
 from sql_rag_util.dialects import load
-from sql_rag_util.exceptions import LimitExceededError, SensitiveColumnError
+from sql_rag_util.exceptions import LimitExceededError, SensitiveColumnError, UnknownColumnError
 from sql_rag_util.executor import Executor
 from sql_rag_util.query.compile import compile_query
 from sql_rag_util.query.policy import ColumnPolicy
@@ -104,7 +104,7 @@ class CompileTest(unittest.TestCase):
             self._compile(QuerySpec("orders", filters=[Filter("id", "eq", i) for i in range(11)]))
         with self.assertRaises(SensitiveColumnError):
             self._compile(QuerySpec("customers", filters=[Filter("email", "starts_with", "a")]))
-        with self.assertRaises(SensitiveColumnError):
+        with self.assertRaises(UnknownColumnError):
             self._compile(QuerySpec("customers", group_by=["password_hash"], measures=[Measure("count")]))
         with self.assertRaises(LimitExceededError):
             self._compile(QuerySpec("orders", group_by=["status", "customer_id", "id"], measures=[Measure("count")]))

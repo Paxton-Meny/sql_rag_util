@@ -7,13 +7,16 @@ import unittest
 from dataclasses import replace
 
 from sql_rag_util.dialects import load
-from sql_rag_util.exceptions import MetadataFormatError, UnknownConceptError, UnknownMeasureError
+from sql_rag_util.config import Limits
+from sql_rag_util.exceptions import MetadataFormatError, UnknownColumnError, UnknownConceptError, UnknownMeasureError
 from sql_rag_util.executor import Executor
 from sql_rag_util.metadata.annotate import annotate
 from sql_rag_util.metadata.model import ColumnMeta, ConceptMeta, DeclaredRelationship, GlossaryEntry, MeasureMeta, Metadata, RelationshipMeta, TableMeta
 from sql_rag_util.metadata.store import MetadataStore
-from sql_rag_util.query.spec import Filter, FilterOp, Measure
+from sql_rag_util.query.compile import compile_query
+from sql_rag_util.query.spec import Filter, FilterOp, Measure, QuerySpec
 from sql_rag_util.schema.introspect import introspect
+from sql_rag_util.sql.render import render
 from sql_rag_util.schema.model import TableRef
 from tests.support.fixture import build_fixture
 
@@ -54,6 +57,41 @@ class AnnotateTest(unittest.TestCase):
         self.assertEqual(ctx.exception.suggestions, ("active", "last_30_days"))
         with self.assertRaises(UnknownMeasureError):
             annotated.measure(CUSTOMERS, "revenue")
+
+    def _hide(self, hidden: dict[str, tuple[str, ...]]) -> Metadata:
+        tables = []
+        for meta in self.metadata.tables:
+            names = hidden.get(meta.table, ())
+            kept = tuple(c for c in meta.columns if c.name not in names)
+            tables.append(replace(meta, columns=kept + tuple(ColumnMeta(n, "", frozenset({"hidden"})) for n in names)))
+        return replace(self.metadata, tables=tuple(tables))
+
+    def test_hidden_columns_leave_the_agent_catalog(self) -> None:
+        """Hidden columns, keys through them, and foreign keys on them are absent, while joins still work."""
+        annotated = annotate(self.catalog, self._hide({"customers": ("id",), "orders": ("customer_id",)}), self.dialect)
+        customers = annotated.catalog.table(CUSTOMERS)
+        self.assertEqual([c.name for c in customers.columns], ["name", "email", "region"])
+        self.assertEqual(customers.primary_key, ())
+        self.assertFalse(any(fk.referenced == CUSTOMERS or "customer_id" in fk.columns for fk in annotated.catalog.foreign_keys))
+        self.assertEqual(self.catalog.table(CUSTOMERS).primary_key, ("id",))
+
+        def compiled(spec: QuerySpec) -> str:
+            return render(compile_query(self.dialect, annotated.catalog, annotated.policy, spec, Limits()).statement, "qmark")[0]
+
+        self.assertIn('LEFT JOIN "customers" AS "t1" ON "t0"."customer_id" = "t1"."id"', compiled(QuerySpec("orders", columns=["id", "customer.name"])))
+        self.assertTrue(compiled(QuerySpec("customers")).endswith('ORDER BY "t0"."name" LIMIT ?'))
+        for spec in (QuerySpec("orders", columns=["customer_id"]), QuerySpec("orders", columns=["id", "customer.id"]), QuerySpec("orders", filters=[Filter("customer_id", "eq", 1)])):
+            with self.subTest(spec=spec):
+                with self.assertRaises(UnknownColumnError) as ctx:
+                    compiled(spec)
+                self.assertNotIn("customer_id", ctx.exception.suggestions)
+                self.assertNotIn("id", ctx.exception.suggestions)
+
+    def test_every_column_hidden_is_an_error(self) -> None:
+        """A table with nothing left to show fails at load rather than at query time."""
+        names = tuple(c.name for c in self.catalog.table(CUSTOMERS).columns)
+        with self.assertRaisesRegex(MetadataFormatError, "every column of customers is hidden"):
+            annotate(self.catalog, self._hide({"customers": names}), self.dialect)
 
     def test_version_changes_with_metadata(self) -> None:
         """Editing metadata changes the version; the same inputs give the same version."""
