@@ -14,4 +14,4 @@ Version 0.1.0 did exactly that, and every leak was a call site that forgot: typo
 
 ## Limits
 
-Developer scope filters and metadata concepts resolve through the same agent catalog, so they cannot use a hidden column either. A tenant column the developer wants to filter on but never show has to be sensitive today, not hidden. Letting trusted developer filters read the full catalog is left for a later decision.
+Metadata concepts resolve through the same agent catalog, so they cannot use a hidden column, because agents can write concepts through the toolkit. Developer scope filters are the exception: they resolve against the full catalog, so a tenant column can be hidden and still scope every query. See `scope-filters-are-trusted.md`.

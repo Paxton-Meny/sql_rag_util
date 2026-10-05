@@ -57,6 +57,9 @@ class AnnotatedCatalog:
         Measures by ref and name.
     version
         Hash over the full catalog structure and metadata, exposed as ``schema_version``.
+    full
+        The developer's view: the same catalog with hidden columns kept, which
+        only trusted developer scope filters resolve against.
     """
 
     catalog: Catalog
@@ -68,6 +71,7 @@ class AnnotatedCatalog:
     concepts: Mapping[TableRef, Mapping[str, ConceptMeta]] = field(default_factory=dict)
     measures: Mapping[TableRef, Mapping[str, MeasureMeta]] = field(default_factory=dict)
     version: str = ""
+    full: Catalog | None = None
 
     def concept_filters(self, ref: TableRef, names: tuple[str, ...]) -> tuple[Filter, ...]:
         """Return the filters of the named concepts on ``ref``, AND-ed by the caller."""
@@ -218,4 +222,4 @@ def annotate(catalog: Catalog, metadata: Metadata, dialect: Dialect, *, max_join
     measures = {ref: {m.name: m for m in meta.measures} for ref, meta in table_meta.items()}
     for ref, meta in table_meta.items():
         _validate_rules(dialect, agent, policy, agent.require(ref), meta, max_join_depth)
-    return AnnotatedCatalog(agent, metadata, policy, table_meta, searchable, fulltext, concepts, measures, _version(merged, metadata))
+    return AnnotatedCatalog(agent, metadata, policy, table_meta, searchable, fulltext, concepts, measures, _version(merged, metadata), merged)

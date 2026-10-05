@@ -36,9 +36,12 @@ def _expand_measures(engine: SqlRag, ref: TableRef, measures: tuple[Measure, ...
 def query(engine: SqlRag, spec: QuerySpec) -> CommandResult:
     """Compile, execute, and shape one query."""
     table = resolve_table(engine.catalog, spec.table)
-    extra = engine.annotated.concept_filters(table.ref, spec.concepts) + engine.scope_filters(table)
+    concepts = engine.annotated.concept_filters(table.ref, spec.concepts)
     expanded = replace(spec, concepts=(), measures=_expand_measures(engine, table.ref, spec.measures))
-    compiled = compile_query(engine.dialect, engine.catalog, engine.annotated.policy, expanded, engine.limits, extra_filters=extra)
+    compiled = compile_query(
+        engine.dialect, engine.catalog, engine.annotated.policy, expanded, engine.limits,
+        extra_filters=concepts, scope=engine.scope_filters(table), full=engine.annotated.full,
+    )
     fetched = engine.executor.fetch(compiled.statement, command="query", limit=compiled.limit)
     rows, cut = shape_rows(fetched.rows, engine.limits)
     notes = list(compiled.notes)

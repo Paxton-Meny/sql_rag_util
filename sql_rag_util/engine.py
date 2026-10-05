@@ -158,13 +158,21 @@ class SqlRag:
         return self._annotated.version
 
     def scope_filters(self, table: TableInfo) -> tuple[Filter, ...]:
-        """Return the developer's scope predicates for ``table``."""
+        """Return the developer's scope predicates for ``table``.
+
+        Raises
+        ------
+        ConfigurationError
+            When ``Config.scope`` returns something that is not a filter. The
+            message names no column, because the agent sees it; the cause is
+            chained for the developer.
+        """
         if self._config.scope is None:
             return ()
         try:
             return tuple(build_arguments(Filter, dict(item)) for item in self._config.scope(table.ref.qualified))
         except (SqlRagError, TypeError, ValueError) as exc:
-            raise ConfigurationError(f"scope filters for {table.ref.qualified} are invalid: {exc}") from None
+            raise ConfigurationError(f"the developer scope for {table.ref.qualified} is invalid; check Config.scope") from exc
 
     def tool_specs(self, *, tier: str = "standard") -> tuple[ToolSpec, ...]:
         """Return the tools exposed at ``tier``; writers only when writes are allowed."""

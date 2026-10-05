@@ -15,6 +15,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Fixed
 
+- Developer scope filters may use hidden and sensitive columns, including through relationship paths, as the design notes promised. Before, they were refused like the agent's own filters, so a query could not be scoped by a column the agent must not see. A broken scope now reports one generic `ConfigurationError` that names no column.
 - Hidden column names no longer leak through "did you mean" suggestions, the metadata toolkit, foreign key targets on cards, or default ordering.
 - A column flagged `fulltext` can no longer also be `sensitive` or `hidden`.
 - Metadata toolkit edits can no longer write structure into a file. Text fields must be one line without control or direction characters, list entries cannot contain commas, description lines cannot start with `#`, and every save renders, parses back, and refuses to write unless the result is identical. A failed refresh after a write restores the previous file.

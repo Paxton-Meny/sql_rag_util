@@ -84,13 +84,19 @@ class Config:
     diagnose_empty_results
         Whether an empty result triggers bounded suggestion lookups.
     reveal_sql
-        Whether envelopes include the rendered statement, for developers.
+        Whether envelopes include the rendered statement, for developers. The
+        statement shows scope predicates, hidden columns included, to whoever
+        reads the envelope, so it stays off wherever an agent is served.
     include_row_estimates
         Whether introspection keeps the row estimates the catalog reports.
         The table listing statement runs either way.
     scope
         Developer predicate source: given a table's qualified name, returns
-        filter mappings applied to every statement on that table.
+        filter mappings applied to every statement on that table. Scope
+        filters are trusted: they may name hidden and sensitive columns,
+        including through relationship paths, and the agent never sees them.
+        Their values must come from the application, such as the signed-in
+        tenant, and never from anything the agent supplied.
     on_statement
         Audit hook called after every executed statement.
     embed

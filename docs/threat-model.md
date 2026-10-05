@@ -12,7 +12,7 @@ This document covers every surface that accepts untrusted input. It is updated i
 
 - The agent. Every tool argument is untrusted. The model may be confused, prompted by hostile content it read elsewhere, or simply wrong. It is assumed to try anything the schema of a tool permits and some things it does not.
 - Content in the database. Cell values flow back to the agent and may contain text that tries to steer it. The package cannot fix that, but it must never let a cell value become SQL, a filesystem path, or a metadata instruction.
-- The developer. Trusted. Configuration, metadata files, scope filters, and the embedding hook run with the developer's authority.
+- The developer. Trusted. Configuration, metadata files, scope filters, and the embedding hook run with the developer's authority. Scope filters alone may use hidden and sensitive columns, and their values must come from the application, never from the agent.
 - The database server. Trusted for correctness of catalog answers. Not trusted to enforce limits the package promised the caller.
 
 ## Surfaces and controls
@@ -21,7 +21,7 @@ This document covers every surface that accepts untrusted input. It is updated i
 
 Threat: SQL injection through a name or a value; enumeration of columns the developer hid; unbounded reads.
 
-Controls: every table, column, relationship, concept, and measure name resolves against the catalog before use, and an unknown name is an error carrying close matches rather than a string that reaches SQL. Values are bound through the driver, never formatted. Operators and aggregate functions are whitelisted and gated by column kind. Sensitive columns are rejected in every position, including filters, because a filter on a secret is an oracle. Row, cell, column, join depth, group, measure, and IN-list caps apply to every statement. Limits are bound values, not text.
+Controls: every table, column, relationship, concept, and measure name resolves against the catalog before use, and an unknown name is an error carrying close matches rather than a string that reaches SQL. Values are bound through the driver, never formatted. Operators and aggregate functions are whitelisted and gated by column kind. Sensitive columns are rejected in every position, including filters, because a filter on a secret is an oracle. Hidden columns are absent from the catalog the agent resolves against, so naming one fails exactly as a missing column does. Developer scope filters are applied to every statement without passing through the agent, and a broken scope is reported as one generic configuration error that names no column. Row, cell, column, join depth, group, measure, and IN-list caps apply to every statement. Limits are bound values, not text.
 
 ### Search terms
 
