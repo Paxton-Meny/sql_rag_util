@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import pathlib
+import shutil
 import sqlite3
+import tempfile
+import unittest
 
-__all__ = ["build_fixture", "FIXTURE_SQL"]
+__all__ = ["build_fixture", "FIXTURE_SQL", "FIXTURES", "fixture_connection", "writable_metadata"]
+
+FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 FIXTURE_SQL = """
 CREATE TABLE customers (
@@ -59,3 +65,19 @@ def build_fixture() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.executescript(FIXTURE_SQL)
     return conn
+
+
+def fixture_connection(test: unittest.TestCase) -> sqlite3.Connection:
+    """Return a fresh fixture connection that is closed when ``test`` ends."""
+    conn = build_fixture()
+    test.addCleanup(conn.close)
+    return conn
+
+
+def writable_metadata(test: unittest.TestCase) -> pathlib.Path:
+    """Return a private copy of the fixture metadata that is removed when ``test`` ends."""
+    tmp = tempfile.TemporaryDirectory()
+    test.addCleanup(tmp.cleanup)
+    root = pathlib.Path(tmp.name) / "meta"
+    shutil.copytree(FIXTURES, root)
+    return root

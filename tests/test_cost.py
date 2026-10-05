@@ -3,15 +3,11 @@
 from __future__ import annotations
 
 import json
-import pathlib
-import shutil
-import tempfile
 import unittest
 
 from sql_rag_util.engine import SqlRag
-from tests.support.fixture import build_fixture
+from tests.support.fixture import fixture_connection, writable_metadata
 
-FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures" / "metadata"
 CAPS = {
     ("describe_table", "json"): 1800,
     ("describe_table", "compact"): 900,
@@ -26,13 +22,7 @@ class CostTest(unittest.TestCase):
     """Outputs stay under the caps recorded in docs/context-cost.md."""
 
     def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        root = pathlib.Path(self.tmp.name) / "meta"
-        shutil.copytree(FIXTURES, root)
-        conn = build_fixture()
-        self.addCleanup(conn.close)
-        self.engine = SqlRag(conn, metadata_root=root)
+        self.engine = SqlRag(fixture_connection(self), metadata_root=writable_metadata(self))
 
     def _size(self, name: str, arguments: dict[str, object], fmt: str) -> int:
         if fmt == "compact":

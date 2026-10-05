@@ -3,30 +3,22 @@
 from __future__ import annotations
 
 import datetime as dt
-import pathlib
-import shutil
-import tempfile
 import unittest
 from unittest import mock
 
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
 from sql_rag_util.exceptions import IntrospectionError
-from tests.support.fixture import build_fixture
+from tests.support.fixture import fixture_connection, writable_metadata
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
 class ToolkitTest(unittest.TestCase):
     """Edits validate, write canonically, carry provenance, and refresh the engine."""
 
     def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = pathlib.Path(self.tmp.name) / "meta"
-        shutil.copytree(FIXTURES, self.root)
-        self.conn = build_fixture()
-        self.addCleanup(self.conn.close)
+        self.root = writable_metadata(self)
+        self.conn = fixture_connection(self)
         self.engine = SqlRag(self.conn, metadata_root=self.root, config=Config(allow_metadata_writes=True))
 
     def test_exposure_requires_writes(self) -> None:
@@ -42,10 +34,12 @@ class ToolkitTest(unittest.TestCase):
     def test_column_edit_with_provenance(self) -> None:
         """A column edit is written with today's date and visible after refresh."""
         version = self.engine.schema_version
+        before = dt.date.today().isoformat()
         result = self.engine.dispatch("edit_column", {"table": "orders", "column": "amount", "text": "Order total in the customer's currency.", "values": []}, tier="full")
         self.assertEqual(result["changed"], "column amount")
         text = (self.root / "tables" / "orders.md").read_text()
-        self.assertIn(f"- amount: Order total in the customer's currency.\n  - source: agent, {dt.date.today().isoformat()}", text)
+        dates = {before, dt.date.today().isoformat()}
+        self.assertTrue(any(f"- amount: Order total in the customer's currency.\n  - source: agent, {d}" in text for d in dates), text)
         self.assertNotEqual(self.engine.schema_version, version)
         card = self.engine.dispatch("describe_table", {"table": "orders"})
         self.assertEqual(next(c for c in card["columns"] if c["name"] == "amount")["text"], "Order total in the customer's currency.")
@@ -107,8 +101,7 @@ class ToolkitTest(unittest.TestCase):
                 result = self.engine.dispatch(tool, arguments, tier="full")
                 self.assertIn(result.get("error", {}).get("type"), ("QuerySpecError", "MetadataFormatError"))
                 self.assertEqual(self._files(), before)
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         SqlRag(conn, metadata_root=self.root)
 
     def test_flags_survive_a_two_step_injection(self) -> None:

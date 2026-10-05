@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 
 from sql_rag_util.metadata.model import ProjectMeta
 from sql_rag_util.metadata.parser import parse_glossary, parse_project, parse_relationships, parse_table
 from sql_rag_util.metadata.writer import render_glossary, render_project, render_relationships, render_table
+from tests.support.fixture import FIXTURES
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
 class RoundTripTest(unittest.TestCase):

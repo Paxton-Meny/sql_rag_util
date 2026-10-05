@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import os
-import pathlib
-import shutil
 import stat
-import tempfile
 import unittest
 from dataclasses import replace
 from unittest import mock
@@ -15,18 +12,15 @@ from sql_rag_util.atomic import atomic_write_text
 from sql_rag_util.exceptions import MetadataFormatError, MetadataPathError
 from sql_rag_util.metadata.model import ColumnMeta, TableMeta
 from sql_rag_util.metadata.store import MetadataStore
+from tests.support.fixture import writable_metadata
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
 class StoreTest(unittest.TestCase):
     """Loading, saving, containment, and atomicity."""
 
     def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = pathlib.Path(self.tmp.name) / "meta"
-        shutil.copytree(FIXTURES, self.root)
+        self.root = writable_metadata(self)
         self.store = MetadataStore(self.root)
 
     def test_load_reads_every_file(self) -> None:
@@ -39,7 +33,7 @@ class StoreTest(unittest.TestCase):
 
     def test_missing_files_contribute_nothing(self) -> None:
         """An empty root loads as default metadata."""
-        empty = MetadataStore(pathlib.Path(self.tmp.name) / "none")
+        empty = MetadataStore(self.root.parent / "none")
         meta = empty.load()
         self.assertEqual((meta.tables, meta.relationships, meta.glossary, meta.project.value_index), ((), (), (), False))
 
@@ -74,7 +68,7 @@ class StoreTest(unittest.TestCase):
                     self.store.table_path(stem)
         with self.assertRaises(MetadataPathError):
             self.store.path("..", "outside.md")
-        outside = pathlib.Path(self.tmp.name) / "outside"
+        outside = self.root.parent / "outside"
         outside.mkdir()
         os.symlink(outside, self.root / "link")
         with self.assertRaises(MetadataPathError):

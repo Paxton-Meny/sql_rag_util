@@ -2,30 +2,21 @@
 
 from __future__ import annotations
 
-import pathlib
-import shutil
-import tempfile
 import unittest
 from collections.abc import Sequence
 
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
-from tests.support.fixture import build_fixture
+from tests.support.fixture import build_fixture, fixture_connection, writable_metadata
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
 class GetContextTest(unittest.TestCase):
     """Questions rank the right tables, link literals to columns, and stay within budget."""
 
     def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        root = pathlib.Path(self.tmp.name) / "meta"
-        shutil.copytree(FIXTURES, root)
-        conn = build_fixture()
-        self.addCleanup(conn.close)
-        self.engine = SqlRag(conn, metadata_root=root)
+        self.root = writable_metadata(self)
+        self.engine = SqlRag(fixture_connection(self), metadata_root=self.root)
 
     def test_question_about_orders_for_acme(self) -> None:
         """orders and customers lead, Acme links to customers.name, open links to orders.status."""
@@ -37,7 +28,7 @@ class GetContextTest(unittest.TestCase):
         self.assertIn(("status", "open"), hits)
         self.assertLessEqual(result["used_tokens"], 1500)
         self.assertEqual(result["schema_version"], self.engine.schema_version)
-        self.assertTrue((pathlib.Path(self.tmp.name) / "meta" / ".cache" / "values.json").is_file())
+        self.assertTrue((self.root / ".cache" / "values.json").is_file())
         text = self.engine.dispatch_text("get_context", {"question": "open orders for acme", "format": "compact"})
         self.assertTrue(text.startswith("# orders") or text.startswith("# customers"))
         self.assertIn("values: ", text)
@@ -60,7 +51,7 @@ class GetContextTest(unittest.TestCase):
         self.assertIn("known values: open, paid, shipped, cancelled", unknown["notes"][0])
         other = build_fixture()
         self.addCleanup(other.close)
-        quiet = SqlRag(other, metadata_root=pathlib.Path(self.tmp.name) / "meta", config=Config(diagnose_empty_results=False))
+        quiet = SqlRag(other, metadata_root=self.root, config=Config(diagnose_empty_results=False))
         plain = quiet.dispatch("query", {"table": "orders", "filters": [{"column": "status", "op": "eq", "value": "opne"}]})
         self.assertTrue(plain["notes"][0].startswith("0 rows"))
 
@@ -72,8 +63,7 @@ class GetContextTest(unittest.TestCase):
             calls.append(list(texts))
             return [[1.0, 0.0] if "employees" in t else [0.0, 1.0] for t in texts]
 
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         engine = SqlRag(conn, config=Config(embed=embed))
         result = engine.dispatch("get_context", {"question": "employees"})
         self.assertEqual(result["tables"][0]["table"], "employees")

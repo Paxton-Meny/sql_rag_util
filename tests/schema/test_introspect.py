@@ -10,15 +10,14 @@ from sql_rag_util.executor import Executor
 from sql_rag_util.schema.introspect import fingerprint_of, introspect
 from sql_rag_util.schema.model import ColumnKind, TableRef
 from tests.support.fakes import FakeConnection, FakeCursor
-from tests.support.fixture import build_fixture
+from tests.support.fixture import build_fixture, fixture_connection
 
 
 class SqliteIntrospectTest(unittest.TestCase):
     """The fixture database introspects into the expected catalog."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.catalog = introspect(Executor(conn, "qmark"), load("sqlite"))
 
     def test_tables_columns_and_keys(self) -> None:
@@ -87,8 +86,7 @@ class FakeDriverIntrospectTest(unittest.TestCase):
 
     def test_fingerprint_ignores_estimates(self) -> None:
         """Only structure feeds the fingerprint."""
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         catalog = introspect(Executor(conn, "qmark"), load("sqlite"))
         self.assertEqual(fingerprint_of(catalog.tables, catalog.foreign_keys), catalog.fingerprint)
 

@@ -10,15 +10,14 @@ from sql_rag_util.executor import Executor
 from sql_rag_util.schema.introspect import introspect
 from sql_rag_util.schema.model import Catalog, ColumnInfo, ColumnKind, TableInfo, TableRef
 from sql_rag_util.schema.resolve import agent_name, closest, resolve_column, resolve_relationship, resolve_table
-from tests.support.fixture import build_fixture
+from tests.support.fixture import fixture_connection
 
 
 class ResolveTest(unittest.TestCase):
     """Exact, then unique case-insensitive, then suggestions."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.catalog = introspect(Executor(conn, "qmark"), load("sqlite"))
 
     def test_table_resolution(self) -> None:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 import tempfile
 import unittest
 
@@ -15,9 +14,8 @@ from sql_rag_util.metadata.store import MetadataStore
 from sql_rag_util.retrieval.cache import JsonCache
 from sql_rag_util.retrieval.values import ValueIndex, build_value_index
 from sql_rag_util.schema.introspect import introspect
-from tests.support.fixture import build_fixture
+from tests.support.fixture import FIXTURES, build_fixture
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
 class ValueIndexTest(unittest.TestCase):

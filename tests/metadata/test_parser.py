@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 
 from sql_rag_util.exceptions import MetadataFormatError
 from sql_rag_util.metadata.parser import parse_glossary, parse_project, parse_relationships, parse_table
 from sql_rag_util.query.spec import AggregateFn, FilterOp
+from tests.support.fixture import FIXTURES
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
 def _read(*parts: str) -> str:

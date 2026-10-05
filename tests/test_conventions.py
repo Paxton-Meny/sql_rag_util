@@ -113,6 +113,21 @@ class ConventionsTest(unittest.TestCase):
             found += [f"{_where(path, n)} {n.name}" for n in tests if not ast.get_docstring(n)]
         self.assertEqual(found, [])
 
+    def test_imports_are_used(self) -> None:
+        """Every module-level import is referenced, or re-exported through __all__."""
+        found = []
+        for path in _files(*SOURCE_DIRS, "tests"):
+            tree = _tree(path)
+            used = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+            exported = {e.value for n in tree.body if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "__all__" for t in n.targets) for e in ast.walk(n.value) if isinstance(e, ast.Constant)}
+            imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom)) and not (isinstance(n, ast.ImportFrom) and n.module == "__future__")]
+            for node in imports:
+                for alias in node.names:
+                    name = (alias.asname or alias.name).split(".")[0]
+                    if name not in used and name not in exported:
+                        found.append(f"{_where(path, node)} {name}")
+        self.assertEqual(found, [])
+
     def test_imports_are_standard_library_or_first_party(self) -> None:
         """Nothing outside the standard library is imported anywhere, including under TYPE_CHECKING and inside functions."""
         found = []

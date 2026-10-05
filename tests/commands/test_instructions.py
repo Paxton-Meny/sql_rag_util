@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 
 from sql_rag_util.engine import SqlRag
-from tests.support.fixture import build_fixture
-
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
+from tests.support.fixture import FIXTURES, fixture_connection
 
 
 class InstructionsTest(unittest.TestCase):
@@ -16,8 +13,7 @@ class InstructionsTest(unittest.TestCase):
 
     def test_instructions(self) -> None:
         """Every tool in the workflow is named and the block stays short."""
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         engine = SqlRag(conn, metadata_root=FIXTURES)
         text = engine.instructions()
         for name in ("get_context", "describe_table", "query", "search_rows", "list_tables"):

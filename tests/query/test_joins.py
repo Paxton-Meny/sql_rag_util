@@ -15,15 +15,14 @@ from sql_rag_util.query.spec import Measure
 from sql_rag_util.schema.introspect import introspect
 from sql_rag_util.schema.model import TableRef
 from sql_rag_util.sql.render import render
-from tests.support.fixture import build_fixture
+from tests.support.fixture import fixture_connection
 
 
 class JoinPlanTest(unittest.TestCase):
     """Paths add joins once, respect depth, and produce aliased references."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.dialect = load("sqlite")
         self.catalog = introspect(Executor(conn, "qmark"), self.dialect)
         self.policy = ColumnPolicy(sensitive={TableRef(None, "customers"): frozenset({"password_hash"})})
@@ -72,8 +71,7 @@ class MeasureSqlTest(unittest.TestCase):
     """Measures render with aliases and kind gates."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.dialect = load("sqlite")
         self.catalog = introspect(Executor(conn, "qmark"), self.dialect)
         self.plan = JoinPlan(self.catalog, ColumnPolicy(), self.catalog.table(TableRef(None, "orders")), Limits().max_join_depth)
