@@ -4,9 +4,14 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Added
+
+- `sql_rag_util.dbapi` with `Connection` and `Cursor` protocols naming the part of PEP 249 the package uses, and `Catalog.require` for lookups that must succeed.
+
 ### Changed
 
 - Hidden columns are now absent from the catalog agents resolve against. Naming one raises `UnknownColumnError`, exactly as a missing column does, instead of `SensitiveColumnError`. Breaking for callers that matched the old error type.
+- Every signature is fully annotated and no inline type-checker suppressions remain; `register_sqlite_functions` is typed to take a `sqlite3.Connection`.
 
 ### Fixed
 

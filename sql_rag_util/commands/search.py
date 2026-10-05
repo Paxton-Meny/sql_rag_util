@@ -18,6 +18,7 @@ from sql_rag_util.sql.render import render
 if TYPE_CHECKING:
     from sql_rag_util.engine import SqlRag
     from sql_rag_util.query.joins import JoinPlan
+    from sql_rag_util.schema.model import TableInfo
     from sql_rag_util.sql.statement import Statement
 
 __all__ = ["SearchRowsArgs", "search_rows", "SEARCH_ROWS"]
@@ -36,7 +37,7 @@ class SearchRowsArgs:
     format: Literal["json", "compact"] = field(default="json", metadata={"description": "json for columns plus rows; compact for a tab-separated table."})
 
 
-def _search_columns(engine: SqlRag, table, args: SearchRowsArgs) -> tuple[str, ...]:  # type: ignore[no-untyped-def]
+def _search_columns(engine: SqlRag, table: TableInfo, args: SearchRowsArgs) -> tuple[str, ...]:
     searchable = engine.annotated.searchable.get(table.ref, ())
     if not searchable:
         raise QuerySpecError(f"{agent_name(engine.catalog, table.ref)} has no searchable columns; mark columns searchable in its metadata")

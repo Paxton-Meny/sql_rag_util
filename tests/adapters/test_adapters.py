@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import unittest
+from typing import Any
 
 from sql_rag_util.adapters import anthropic, mcp, openai
 from sql_rag_util.engine import SqlRag
@@ -12,7 +13,7 @@ from tests.support.fixture import build_fixture
 FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
-def _walk(schema: dict) -> list[dict]:  # type: ignore[type-arg]
+def _walk(schema: dict[str, Any]) -> list[dict[str, Any]]:
     found = [schema]
     for member in schema.get("anyOf", []):
         found += _walk(member)

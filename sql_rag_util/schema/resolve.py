@@ -7,7 +7,7 @@ otherwise an error carrying close matches so the agent can correct itself.
 from __future__ import annotations
 
 import difflib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from sql_rag_util.exceptions import UnknownColumnError, UnknownRelationshipError, UnknownTableError
 
@@ -20,6 +20,7 @@ __all__ = ["agent_name", "resolve_table", "resolve_column", "resolve_relationshi
 
 _SUGGESTION_COUNT = 3
 _SUGGESTION_CUTOFF = 0.5
+_Item = TypeVar("_Item")
 
 
 def closest(name: str, candidates: Iterable[str]) -> tuple[str, ...]:
@@ -38,7 +39,7 @@ def agent_name(catalog: Catalog, ref: TableRef) -> str:
     return ref.name if len(same) == 1 else ref.qualified
 
 
-def _pick(name: str, items: Iterable[tuple[str, object]], error: Callable[[str, tuple[str, ...]], Exception], what: str, where: str = "") -> object:
+def _pick(name: str, items: Iterable[tuple[str, _Item]], error: Callable[[str, tuple[str, ...]], Exception], what: str, where: str = "") -> _Item:
     pairs = list(items)
     for key, item in pairs:
         if key == name:
@@ -55,16 +56,16 @@ def resolve_table(catalog: Catalog, name: str) -> TableInfo:
     """Return the table called ``name``, accepting bare or ``schema.name`` forms."""
     items = [(agent_name(catalog, t.ref), t) for t in catalog.tables]
     items += [(t.ref.qualified, t) for t in catalog.tables if t.ref.schema]
-    return _pick(name, items, lambda m, s: UnknownTableError(m, suggestions=s), "table")  # type: ignore[return-value]
+    return _pick(name, items, lambda m, s: UnknownTableError(m, suggestions=s), "table")
 
 
 def resolve_column(table: TableInfo, name: str) -> ColumnInfo:
     """Return the column of ``table`` called ``name``."""
     items = [(c.name, c) for c in table.columns]
-    return _pick(name, items, lambda m, s: UnknownColumnError(m, suggestions=s), "column", f" on table {table.ref.qualified}")  # type: ignore[return-value]
+    return _pick(name, items, lambda m, s: UnknownColumnError(m, suggestions=s), "column", f" on table {table.ref.qualified}")
 
 
 def resolve_relationship(catalog: Catalog, table: TableInfo, name: str) -> Relationship:
     """Return the relationship navigated from ``table`` called ``name``."""
     items = [(r.name, r) for r in catalog.relationships_of(table.ref)]
-    return _pick(name, items, lambda m, s: UnknownRelationshipError(m, suggestions=s), "relationship", f" on table {table.ref.qualified}")  # type: ignore[return-value]
+    return _pick(name, items, lambda m, s: UnknownRelationshipError(m, suggestions=s), "relationship", f" on table {table.ref.qualified}")

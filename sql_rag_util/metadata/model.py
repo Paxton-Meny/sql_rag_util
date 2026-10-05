@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sql_rag_util.query.spec import Filter, Measure
+    from sql_rag_util.schema.model import Cardinality
 
 __all__ = [
     "COLUMN_FLAGS",
@@ -98,7 +99,7 @@ class DeclaredRelationship:
     from_columns: tuple[str, ...]
     to_table: str
     to_columns: tuple[str, ...]
-    cardinality: Literal["to_one", "to_many"]
+    cardinality: Cardinality
     text: str
 
 

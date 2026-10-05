@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from sql_rag_util.commands.diagnose import empty_result_notes
 from sql_rag_util.commands.results import shape_rows, table_text
@@ -12,23 +13,27 @@ from sql_rag_util.query.spec import AggregateFn, Measure, QuerySpec
 from sql_rag_util.schema.resolve import agent_name, resolve_table
 from sql_rag_util.sql.render import render
 
+if TYPE_CHECKING:
+    from sql_rag_util.engine import SqlRag
+    from sql_rag_util.schema.model import TableRef
+
 __all__ = ["query", "QUERY"]
 
 _EMPTY_NOTE = "0 rows. Check filter values against describe_table's known values, or find the row with search_rows."
 
 
-def _expand_measures(engine: object, ref: object, measures: tuple[Measure, ...]) -> tuple[Measure, ...]:
+def _expand_measures(engine: SqlRag, ref: TableRef, measures: tuple[Measure, ...]) -> tuple[Measure, ...]:
     out = []
     for measure in measures:
         if measure.fn is AggregateFn.MEASURE:
-            named = engine.annotated.measure(ref, measure.column or "")  # type: ignore[attr-defined]
+            named = engine.annotated.measure(ref, measure.column or "")
             out.append(replace(named, alias=measure.alias or named.alias))
         else:
             out.append(measure)
     return tuple(out)
 
 
-def query(engine, spec: QuerySpec) -> CommandResult:  # type: ignore[no-untyped-def]
+def query(engine: SqlRag, spec: QuerySpec) -> CommandResult:
     """Compile, execute, and shape one query."""
     table = resolve_table(engine.catalog, spec.table)
     extra = engine.annotated.concept_filters(table.ref, spec.concepts) + engine.scope_filters(table)

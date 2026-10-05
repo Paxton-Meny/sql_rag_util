@@ -36,7 +36,7 @@ class ModelTest(unittest.TestCase):
         """Instances refuse mutation and can be set members."""
         table = _orders()
         with self.assertRaises(dataclasses.FrozenInstanceError):
-            table.ref = CUSTOMERS  # type: ignore[misc]
+            setattr(table, "ref", CUSTOMERS)
         self.assertEqual(len({ORDERS, TableRef(None, "orders")}), 1)
 
     def test_qualified_name(self) -> None:
@@ -60,6 +60,9 @@ class ModelTest(unittest.TestCase):
         catalog = Catalog("sqlite", (_orders(),), relationships=(rel,))
         self.assertIs(catalog.table(ORDERS), catalog.tables[0])
         self.assertIsNone(catalog.table(CUSTOMERS))
+        self.assertIs(catalog.require(ORDERS), catalog.tables[0])
+        with self.assertRaisesRegex(LookupError, "customers is not in the catalog"):
+            catalog.require(CUSTOMERS)
         self.assertEqual(catalog.relationships_of(ORDERS), (rel,))
         self.assertEqual(catalog.relationships_of(CUSTOMERS), ())
 

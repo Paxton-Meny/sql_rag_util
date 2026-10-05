@@ -217,5 +217,5 @@ def annotate(catalog: Catalog, metadata: Metadata, dialect: Dialect, *, max_join
     concepts = {ref: {c.name: c for c in meta.concepts} for ref, meta in table_meta.items()}
     measures = {ref: {m.name: m for m in meta.measures} for ref, meta in table_meta.items()}
     for ref, meta in table_meta.items():
-        _validate_rules(dialect, agent, policy, agent.table(ref), meta, max_join_depth)  # type: ignore[arg-type]
+        _validate_rules(dialect, agent, policy, agent.require(ref), meta, max_join_depth)
     return AnnotatedCatalog(agent, metadata, policy, table_meta, searchable, fulltext, concepts, measures, _version(merged, metadata))

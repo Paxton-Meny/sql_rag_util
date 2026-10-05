@@ -20,6 +20,8 @@ from sql_rag_util.sql.render import render
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
 
+    from sql_rag_util.dbapi import Connection
+
     from sql_rag_util.sql.statement import Statement
 
 __all__ = ["Fetched", "Executor"]
@@ -68,7 +70,7 @@ class Executor:
 
     def __init__(
         self,
-        connection: object,
+        connection: Connection,
         paramstyle: str,
         *,
         on_statement: Callable[[StatementEvent], None] | None = None,
@@ -99,7 +101,7 @@ class Executor:
         text, params = render(statement, self._paramstyle)
         started = time.perf_counter()
         with _driver_errors(command):
-            cursor = self._connection.cursor()  # type: ignore[attr-defined]
+            cursor = self._connection.cursor()
         try:
             with _driver_errors(command):
                 cursor.execute(text, params)

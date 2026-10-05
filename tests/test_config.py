@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from sql_rag_util.config import Config, Limits
 from sql_rag_util.exceptions import ConfigurationError
@@ -18,10 +19,11 @@ class LimitsTest(unittest.TestCase):
 
     def test_rejects_non_positive_and_wrong_types(self) -> None:
         """Zero, negatives, booleans, and strings are refused with the field name."""
-        for value in (0, -1, True, "5"):
+        values: tuple[Any, ...] = (0, -1, True, "5")
+        for value in values:
             with self.subTest(value=value):
                 with self.assertRaises(ConfigurationError) as ctx:
-                    Limits(max_rows=value)  # type: ignore[arg-type]
+                    Limits(max_rows=value)
                 self.assertIn("max_rows", str(ctx.exception))
 
     def test_rejects_max_rows_over_hard_cap(self) -> None:
@@ -42,10 +44,12 @@ class ConfigTest(unittest.TestCase):
 
     def test_hooks_must_be_callable(self) -> None:
         """Non-callable hooks are refused."""
+        text: Any = "tenant = 1"
+        plain: Any = object()
         with self.assertRaises(ConfigurationError):
-            Config(scope="tenant = 1")  # type: ignore[arg-type]
+            Config(scope=text)
         with self.assertRaises(ConfigurationError):
-            Config(on_statement=object())  # type: ignore[arg-type]
+            Config(on_statement=plain)
 
 
 if __name__ == "__main__":

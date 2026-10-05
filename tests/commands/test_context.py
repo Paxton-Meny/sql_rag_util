@@ -6,6 +6,7 @@ import pathlib
 import shutil
 import tempfile
 import unittest
+from collections.abc import Sequence
 
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
@@ -65,9 +66,9 @@ class GetContextTest(unittest.TestCase):
 
     def test_embed_hook_participates(self) -> None:
         """An embed function is called with schema text and its ranking is fused in."""
-        calls = []
+        calls: list[list[str]] = []
 
-        def embed(texts):  # type: ignore[no-untyped-def]
+        def embed(texts: Sequence[str]) -> list[list[float]]:
             calls.append(list(texts))
             return [[1.0, 0.0] if "employees" in t else [0.0, 1.0] for t in texts]
 
