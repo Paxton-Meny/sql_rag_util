@@ -40,5 +40,5 @@ def call_tool(engine: SqlRag, name: str, arguments: dict[str, Any], *, tier: str
         return {"content": [{"type": "text", "text": message}], "isError": True, "structuredContent": {"error": {"type": exc.type_name, "message": exc.message, "suggestions": list(exc.suggestions)}}}
     structured = envelope(result, engine.schema_version)
     wants_text = getattr(arguments, "get", lambda k, d=None: d)("format") == "compact"
-    text = compact_text(result, engine.schema_version) if wants_text else json.dumps(structured, separators=(",", ":"), ensure_ascii=False)
+    text = compact_text(result, engine.schema_version) if wants_text else json.dumps(structured, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
     return {"content": [{"type": "text", "text": text}], "structuredContent": structured}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import decimal
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,16 +17,31 @@ __all__ = ["JsonRows", "shape_rows", "table_text", "coerce_cell"]
 JsonRows = list[list[object]]
 _ELLIPSIS = "…"
 _WHITESPACE = str.maketrans({"\t": " ", "\n": " ", "\r": " "})
+_MAX_INTEGER_DIGITS = 1000
+
+
+def _non_finite(is_nan: bool, negative: bool) -> str:
+    return "NaN" if is_nan else "-Infinity" if negative else "Infinity"
 
 
 def coerce_cell(value: object, max_chars: int) -> tuple[object, bool]:
-    """Return a JSON scalar for ``value`` and whether it was truncated."""
-    if value is None or isinstance(value, (bool, int, float)):
+    """Return a JSON scalar for ``value`` and whether it was truncated.
+
+    Every result is valid strict JSON: NaN and infinities, which JSON cannot
+    represent, become the strings ``"NaN"``, ``"Infinity"``, and
+    ``"-Infinity"``, and decimals too large for a number become their text.
+    """
+    if value is None or isinstance(value, (bool, int)):
         return value, False
+    if isinstance(value, float):
+        return (value if math.isfinite(value) else _non_finite(math.isnan(value), value < 0)), False
     if isinstance(value, decimal.Decimal):
+        if not value.is_finite():
+            return _non_finite(value.is_nan(), value.is_signed()), False
         if value == value.to_integral_value():
-            return int(value), False
-        return float(value), False
+            return (int(value) if value.adjusted() < _MAX_INTEGER_DIGITS else str(value)), False
+        number = float(value)
+        return (number if math.isfinite(number) else str(value)), False
     if isinstance(value, dt.datetime):
         return value.isoformat(sep=" ", timespec="seconds"), False
     if isinstance(value, (dt.date, dt.time)):
