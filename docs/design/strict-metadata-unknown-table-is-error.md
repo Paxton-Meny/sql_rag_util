@@ -10,4 +10,4 @@ Warn and ignore stale entries.
 
 ## Why the alternative lost
 
-Stale metadata silently shapes what an agent believes. Failing at load time turns a renamed column into a one-line fix rather than a wrong answer, and the toolkit has an explicit remove for retired tables.
+Stale metadata silently shapes what an agent believes. Failing at load time turns a renamed column into a one-line fix rather than a wrong answer, and retiring a table is the developer deleting its file, or calling `MetadataStore.remove_table` from code.

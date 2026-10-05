@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-There is no release yet. Once versions exist, the latest minor release receives security fixes.
+Only the latest minor release receives security fixes. Version 0.1.0 has security issues that later releases fix; do not use it.
 
 ## Reporting a vulnerability
 

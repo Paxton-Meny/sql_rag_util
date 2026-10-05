@@ -70,6 +70,23 @@ class GetContextTest(unittest.TestCase):
         self.assertTrue(calls)
         self.assertFalse(any("Acme" in t for t in calls[0]))
 
+    def test_embed_hook_never_sees_database_values_or_hidden_columns(self) -> None:
+        """With metadata and the value index on, the hook gets schema text and the question, nothing read from rows."""
+        sent: list[str] = []
+
+        def embed(texts: Sequence[str]) -> list[list[float]]:
+            sent.extend(texts)
+            return [[1.0, 0.0] for _ in texts]
+
+        engine = SqlRag(fixture_connection(self), metadata_root=self.root, config=Config(embed=embed))
+        engine.dispatch("get_context", {"question": "orders for the north region"})
+        self.assertTrue((self.root / ".cache" / "values.json").is_file())
+        self.assertIn("orders for the north region", sent)
+        text = " ".join(sent)
+        for leaked in ("Acme Corp", "Jon Smyth", "Zeta Ltd", "UPS", "left depot", "Grace", "rush", "password_hash", "Staff notes"):
+            with self.subTest(leaked=leaked):
+                self.assertNotIn(leaked, text)
+
 
 if __name__ == "__main__":
     unittest.main()
