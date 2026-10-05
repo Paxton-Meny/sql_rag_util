@@ -51,6 +51,40 @@ class ExecutorTest(unittest.TestCase):
         self.assertIn("query", str(ctx.exception))
         self.assertIn("missing", str(ctx.exception))
 
+    def test_cursor_failures_never_escape_unwrapped(self) -> None:
+        """Opening a cursor, executing, and closing all fail as ExecutionError; a close failure never masks the cause."""
+
+        class NoCursor(FakeConnection):
+            def cursor(self) -> FakeCursor:
+                raise ConnectionError("server closed the connection")
+
+        class Broken(FakeCursor):
+            def execute(self, sql: str, params: object) -> None:
+                raise ValueError("syntax error")
+
+            def close(self) -> None:
+                raise OSError("socket gone")
+
+        class CloseFails(FakeCursor):
+            def close(self) -> None:
+                raise OSError("socket gone")
+
+        cases = [
+            (NoCursor(), "ConnectionError: server closed the connection"),
+            (FakeConnection([Broken()]), "ValueError: syntax error"),
+            (FakeConnection([CloseFails(rows=[(1,)])]), "OSError: socket gone"),
+        ]
+        for connection, cause in cases:
+            with self.subTest(cause=cause):
+                with self.assertRaisesRegex(ExecutionError, f"^query: {cause}$"):
+                    Executor(connection, "qmark").fetch(sql("SELECT 1"), command="query", limit=1)
+
+    def test_mapping_rows_become_value_tuples(self) -> None:
+        """Drivers configured to return dictionaries yield the same tuples as plain cursors."""
+        cursor = FakeCursor(rows=[{"id": 1, "name": "Acme"}, {"id": 2, "name": "Zeta"}])
+        fetched = Executor(FakeConnection([cursor]), "pyformat").fetch(sql("SELECT id, name FROM t"), command="query", limit=5)
+        self.assertEqual(fetched.rows, ((1, "Acme"), (2, "Zeta")))
+
     def test_live_sqlite_and_no_commit(self) -> None:
         """Rows come back as tuples from a real connection and the fake never sees a commit."""
         conn = sqlite3.connect(":memory:")

@@ -60,7 +60,8 @@ class StatementEvent:
     elapsed_seconds
         Wall-clock time spent in the driver.
     row_count
-        Rows fetched before truncation was decided.
+        Rows returned to the command, after the extra row fetched to detect
+        truncation was dropped.
     """
 
     command: str
@@ -85,7 +86,8 @@ class Config:
     reveal_sql
         Whether envelopes include the rendered statement, for developers.
     include_row_estimates
-        Whether introspection runs the per-table row estimate statement.
+        Whether introspection keeps the row estimates the catalog reports.
+        The table listing statement runs either way.
     scope
         Developer predicate source: given a table's qualified name, returns
         filter mappings applied to every statement on that table.
