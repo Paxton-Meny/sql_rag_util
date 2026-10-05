@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sql_rag_util.exceptions import SensitiveColumnError
+from sql_rag_util.exceptions import SensitiveColumnError, UnknownColumnError
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -35,9 +35,13 @@ class ColumnPolicy:
         return column in self.sensitive.get(ref, frozenset())
 
     def check_usable(self, ref: TableRef, column: str) -> None:
-        """Raise unless ``column`` may appear in a statement."""
+        """Raise unless ``column`` may appear in a statement.
+
+        A hidden column raises the same error a missing column does, so the
+        agent cannot tell the two apart.
+        """
         if self.is_hidden(ref, column):
-            raise SensitiveColumnError(f"column {column!r} does not exist on {ref.qualified}")
+            raise UnknownColumnError(f"unknown column {column!r} on table {ref.qualified}")
         if self.is_sensitive(ref, column):
             raise SensitiveColumnError(f"column {column!r} on {ref.qualified} is sensitive and cannot be used")
 

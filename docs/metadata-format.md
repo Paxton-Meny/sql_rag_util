@@ -103,7 +103,7 @@ Bullet grammar: `- <name>[ [<flag>, ...]]: <text>`. The name must be a column of
 | `hidden` | Absent from every output and every predicate |
 | `fulltext` | A full-text index exists on this column; enables the dialect's full-text strategy |
 
-`searchable`, `sensitive`, and `hidden` are mutually exclusive. Sub-bullets: `values:` (a list of the meaningful values, shown in cards), `synonyms:` (a list), `source:` (`agent, YYYY-MM-DD` or `developer`; absent means developer).
+`sensitive`, `hidden`, and either of `searchable` or `fulltext` are mutually exclusive. Sub-bullets: `values:` (a list of the meaningful values, shown in cards), `synonyms:` (a list), `source:` (`agent, YYYY-MM-DD` or `developer`; absent means developer).
 
 ### Relationships
 

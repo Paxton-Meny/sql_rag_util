@@ -7,7 +7,7 @@ sql_rag_util lets AI agents retrieve from arbitrary SQL tables without writing S
 1. No SQL text from outside. Builders are pure functions from (dialect, catalog, validated arguments) to a `Statement` of fixed fragments and `Bind` values. There is no `execute_sql` and no debug path that adds one.
 2. Identifiers exist before they are quoted. Every table and column name resolves against the introspected catalog, then the dialect quotes it. The package never emits `SELECT *`; column lists come from the catalog minus hidden and sensitive columns.
 3. Values are always bound, limits included. One renderer turns a `Statement` into the driver's paramstyle. Placeholders are never rewritten inside SQL text.
-4. Sensitive means invisible to predicates. A sensitive column cannot be selected, filtered, ordered, grouped, searched, indexed, or sampled. A hidden column does not exist to the agent.
+4. Sensitive means invisible to predicates. A sensitive column cannot be selected, filtered, ordered, grouped, searched, indexed, or sampled. A hidden column does not exist to the agent: it is removed from the catalog agents resolve against, so naming it fails exactly as a missing column does.
 5. Metadata is code. The format is strict and versioned, round-trips exactly, is written atomically, stays inside its root, and is validated against the catalog.
 6. Results are deterministic. Every data query orders by primary key when the agent gives no order. Pagination is keyset, through filters. There is no OFFSET.
 7. Every statement is bounded: row cap, cell cap, column cap, join depth cap, group and measure caps, value index cardinality cap.

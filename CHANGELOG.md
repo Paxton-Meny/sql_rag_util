@@ -4,6 +4,15 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ## [Unreleased]
 
+### Changed
+
+- Hidden columns are now absent from the catalog agents resolve against. Naming one raises `UnknownColumnError`, exactly as a missing column does, instead of `SensitiveColumnError`. Breaking for callers that matched the old error type.
+
+### Fixed
+
+- Hidden column names no longer leak through "did you mean" suggestions, the metadata toolkit, foreign key targets on cards, or default ordering.
+- A column flagged `fulltext` can no longer also be `sensitive` or `hidden`.
+
 ## [0.1.0] - 2026-09-13
 
 First release. Standard library only, Python 3.11 or newer.

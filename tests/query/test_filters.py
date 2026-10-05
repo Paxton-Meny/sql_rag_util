@@ -6,7 +6,7 @@ import datetime as dt
 import unittest
 
 from sql_rag_util.dialects import load
-from sql_rag_util.exceptions import LimitExceededError, QuerySpecError, SensitiveColumnError
+from sql_rag_util.exceptions import LimitExceededError, QuerySpecError, SensitiveColumnError, UnknownColumnError
 from sql_rag_util.query.filters import build_predicate, since_bound
 from sql_rag_util.query.policy import ColumnPolicy
 from sql_rag_util.query.spec import Filter
@@ -79,19 +79,10 @@ class ColumnPolicyTest(unittest.TestCase):
         self.assertEqual([c.name for c in policy.visible(ref, columns)], ["name", "email"])
         self.assertEqual([c.name for c in policy.selectable(ref, columns)], ["name"])
         policy.check_usable(ref, "name")
-        for column in ("email", "notes"):
-            with self.subTest(column=column):
-                with self.assertRaises(SensitiveColumnError):
-                    policy.check_usable(ref, column)
-        self.assertIn("does not exist", str(self._error(policy, ref, "notes")))
-
-    @staticmethod
-    def _error(policy: ColumnPolicy, ref: TableRef, column: str) -> Exception:
-        try:
-            policy.check_usable(ref, column)
-        except SensitiveColumnError as exc:
-            return exc
-        raise AssertionError("expected an error")
+        with self.assertRaises(SensitiveColumnError):
+            policy.check_usable(ref, "email")
+        with self.assertRaisesRegex(UnknownColumnError, "^unknown column 'notes' on table customers$"):
+            policy.check_usable(ref, "notes")
 
 
 if __name__ == "__main__":

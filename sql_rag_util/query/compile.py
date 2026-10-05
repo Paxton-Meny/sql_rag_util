@@ -136,7 +136,11 @@ def _order(dialect: Dialect, plan: JoinPlan, spec: QuerySpec, group_sql: list[st
         return "ORDER BY " + ", ".join(group_sql)
     if spec.measures:
         return None
-    key = plan.base.primary_key or (plan.base.columns[0].name,)
+    selectable = [c.name for c in plan.policy.selectable(plan.base.ref, plan.base.columns)]
+    key = plan.base.primary_key if set(plan.base.primary_key) <= set(selectable) else ()
+    key = key or tuple(selectable[:1])
+    if not key:
+        return None
     return "ORDER BY " + ", ".join(f"{dialect.quote(plan.base_alias)}.{dialect.quote(c)}" for c in key)
 
 

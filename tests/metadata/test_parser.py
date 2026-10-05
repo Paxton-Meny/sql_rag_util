@@ -53,6 +53,8 @@ class ParseTableTest(unittest.TestCase):
             base + "\n## Columns\n\n- a [secret]: x\n": 8,
             base + "\n## Columns\n\n- a [hidden, sensitive]: x\n": 8,
             base + "\n## Columns\n\n- a [searchable, sensitive]: x\n": 8,
+            base + "\n## Columns\n\n- a [fulltext, hidden]: x\n": 8,
+            base + "\n## Columns\n\n- a [fulltext, sensitive]: x\n": 8,
             base + "\n## Columns\n\n- a: x\n  - nope: 1\n": 9,
             base + "\n## Concepts\n\n- Active: x\n  - where: []\n": 8,
             base + "\n## Concepts\n\n- active: x\n": 8,
