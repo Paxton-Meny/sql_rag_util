@@ -44,7 +44,7 @@ The compact form is a heading line, the description, one line of columns separat
 
 ## Toolkit (full tier, writes enabled)
 
-`edit_table {table, purpose?, description?, synonyms?}`, `edit_column {table, column, text, values?, synonyms?, searchable?}`, `edit_relationship {table, name, text}`, `edit_concept {table, name, text, where}`, `edit_glossary {term, definition, synonyms?, tables?}`. Each edit is validated against the catalog before it is written canonically; column edits carry `source: agent, <date>`. The toolkit never sets or clears `sensitive` and `hidden`.
+`edit_table {table, purpose?, description?, synonyms?}`, `edit_column {table, column, text, values?, synonyms?, searchable?}`, `edit_relationship {table, name, text}`, `edit_concept {table, name, text, where}`, `edit_glossary {term, definition, synonyms?, tables?}`. Each edit is validated against the catalog and written canonically only if the file reads back identically; text fields are single lines and list entries contain no commas. If the files changed on disk since they were loaded, the edit is refused with `MetadataConflictError` and the engine reloads, so a retry applies on top of the change. Column edits carry `source: agent, <date>`. The toolkit never sets or clears `sensitive` and `hidden`.
 
 ## Cost
 

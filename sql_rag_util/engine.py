@@ -86,11 +86,14 @@ class SqlRag:
         self.refresh()
 
     def refresh(self) -> None:
-        """Re-read the catalog and the metadata; retrieval indexes rebuild on next use."""
-        self._raw_catalog = introspect(self._executor, self._dialect, schemas=self._schemas, include_row_estimates=self._config.include_row_estimates)
+        """Re-read the catalog and the metadata; retrieval indexes rebuild on next use.
+
+        A failure leaves the engine exactly as it was.
+        """
+        raw_catalog = introspect(self._executor, self._dialect, schemas=self._schemas, include_row_estimates=self._config.include_row_estimates)
         metadata = self._store.load() if self._store is not None else Metadata()
-        self._annotated = annotate(self._raw_catalog, metadata, self._dialect, max_join_depth=self.limits.max_join_depth)
-        self._retriever = None
+        annotated = annotate(raw_catalog, metadata, self._dialect, max_join_depth=self.limits.max_join_depth)
+        self._raw_catalog, self._annotated, self._retriever = raw_catalog, annotated, None
 
     @property
     def retriever(self) -> Retriever:

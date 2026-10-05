@@ -57,6 +57,10 @@ class MetadataStore:
             raise MetadataFormatError(f"table file stem {stem!r} is not a table name", path=f"{_TABLES}/{stem}.md")
         return self.path(_TABLES, f"{stem}.md")
 
+    def glossary_path(self) -> Path:
+        """Return the path of ``glossary.md``."""
+        return self.path(_GLOSSARY)
+
     def _relative(self, path: Path) -> str:
         return str(path.relative_to(self._root))
 
@@ -77,15 +81,31 @@ class MetadataStore:
         if (path := self.path(_RELATIONSHIPS)).is_file():
             relationships = parse_relationships(path.read_text(encoding="utf-8"), self._relative(path))
         glossary: tuple[GlossaryEntry, ...] = ()
-        if (path := self.path(_GLOSSARY)).is_file():
+        if (path := self.glossary_path()).is_file():
             glossary = parse_glossary(path.read_text(encoding="utf-8"), self._relative(path))
         return Metadata(project, tuple(tables), relationships, glossary)
 
-    def save_table(self, meta: TableMeta) -> Path:
-        """Write ``meta`` canonically and return its path."""
-        path = self.table_path(meta.table)
-        atomic_write_text(path, render_table(meta))
+    def _write(self, path: Path, text: str, read_back: object, expected: object) -> Path:
+        if read_back != expected:
+            raise MetadataFormatError("would not read back as written; nothing was saved", path=self._relative(path))
+        atomic_write_text(path, text)
         return path
+
+    def save_table(self, meta: TableMeta) -> Path:
+        """Write ``meta`` canonically and return its path.
+
+        Every ``save_*`` method renders, parses the rendering back, and writes
+        only when the result equals what it was given, so no value can smuggle
+        structure into a file.
+
+        Raises
+        ------
+        MetadataFormatError
+            When the rendering would parse differently or not at all.
+        """
+        path = self.table_path(meta.table)
+        text = render_table(meta)
+        return self._write(path, text, parse_table(text, self._relative(path), meta.table), meta)
 
     def remove_table(self, stem: str) -> bool:
         """Delete the table file for ``stem``; return whether it existed."""
@@ -97,17 +117,17 @@ class MetadataStore:
     def save_project(self, meta: ProjectMeta) -> Path:
         """Write ``project.md`` canonically."""
         path = self.path(_PROJECT)
-        atomic_write_text(path, render_project(meta))
-        return path
+        text = render_project(meta)
+        return self._write(path, text, parse_project(text, self._relative(path)), meta)
 
     def save_relationships(self, relationships: tuple[DeclaredRelationship, ...]) -> Path:
         """Write ``relationships.md`` canonically."""
         path = self.path(_RELATIONSHIPS)
-        atomic_write_text(path, render_relationships(relationships))
-        return path
+        text = render_relationships(relationships)
+        return self._write(path, text, parse_relationships(text, self._relative(path)), relationships)
 
     def save_glossary(self, entries: tuple[GlossaryEntry, ...]) -> Path:
         """Write ``glossary.md`` canonically."""
-        path = self.path(_GLOSSARY)
-        atomic_write_text(path, render_glossary(entries))
-        return path
+        path = self.glossary_path()
+        text = render_glossary(entries)
+        return self._write(path, text, parse_glossary(text, self._relative(path)), entries)

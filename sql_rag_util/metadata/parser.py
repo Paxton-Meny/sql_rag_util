@@ -31,9 +31,17 @@ _MAX_DISTINCT = 1000
 _MAX_SAMPLES = 10
 
 
+def _unique(doc: Document, seen: set[str], name: str, line: int, what: str) -> None:
+    if name in seen:
+        raise doc.fail(f"duplicate {what} {name!r}", line)
+    seen.add(name)
+
+
 def _columns(doc: Document, lines: list[tuple[int, str]]) -> tuple[ColumnMeta, ...]:
-    out = []
+    out: list[ColumnMeta] = []
+    seen: set[str] = set()
     for b in bullets(doc, lines):
+        _unique(doc, seen, b.name, b.line, "column")
         if not _IDENTIFIER.match(b.name):
             raise doc.fail(f"column name {b.name!r} is not an identifier", b.line)
         for flag in b.flags:
@@ -49,8 +57,10 @@ def _columns(doc: Document, lines: list[tuple[int, str]]) -> tuple[ColumnMeta, .
 
 
 def _relationships(doc: Document, lines: list[tuple[int, str]]) -> tuple[RelationshipMeta, ...]:
-    out = []
+    out: list[RelationshipMeta] = []
+    seen: set[str] = set()
     for b in bullets(doc, lines):
+        _unique(doc, seen, b.name, b.line, "relationship")
         if b.flags or not _IDENTIFIER.match(b.name):
             raise doc.fail(f"relationship {b.name!r} takes no flags and must be an identifier", b.line)
         only_subs(doc, b, ("renames",))
@@ -59,8 +69,10 @@ def _relationships(doc: Document, lines: list[tuple[int, str]]) -> tuple[Relatio
 
 
 def _concepts(doc: Document, lines: list[tuple[int, str]]) -> tuple[ConceptMeta, ...]:
-    out = []
+    out: list[ConceptMeta] = []
+    seen: set[str] = set()
     for b in bullets(doc, lines):
+        _unique(doc, seen, b.name, b.line, "concept")
         if b.flags or not _LOWER_IDENTIFIER.match(b.name):
             raise doc.fail(f"concept {b.name!r} must be a lowercase identifier without flags", b.line)
         only_subs(doc, b, ("where",))
@@ -77,8 +89,10 @@ def _concepts(doc: Document, lines: list[tuple[int, str]]) -> tuple[ConceptMeta,
 
 
 def _measures(doc: Document, lines: list[tuple[int, str]]) -> tuple[MeasureMeta, ...]:
-    out = []
+    out: list[MeasureMeta] = []
+    seen: set[str] = set()
     for b in bullets(doc, lines):
+        _unique(doc, seen, b.name, b.line, "measure")
         if b.flags or not _LOWER_IDENTIFIER.match(b.name):
             raise doc.fail(f"measure {b.name!r} must be a lowercase identifier without flags", b.line)
         only_subs(doc, b, ("expr",))
