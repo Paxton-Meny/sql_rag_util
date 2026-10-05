@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import datetime as dt
 import unittest
+from typing import Any
 
 from sql_rag_util.config import Limits
 from sql_rag_util.dialects import load
 from sql_rag_util.exceptions import LimitExceededError, SensitiveColumnError, UnknownColumnError
-from sql_rag_util.executor import Executor
-from sql_rag_util.query.compile import compile_query
+from sql_rag_util.executor import Executor, Fetched
+from sql_rag_util.query.compile import Compiled, compile_query
 from sql_rag_util.query.policy import ColumnPolicy
 from sql_rag_util.query.spec import Filter, Measure, Order, QuerySpec
 from sql_rag_util.schema.introspect import introspect
@@ -32,10 +33,10 @@ class CompileTest(unittest.TestCase):
         self.catalog = introspect(self.executor, load("sqlite"))
         self.limits = Limits()
 
-    def _compile(self, spec: QuerySpec, dialect: str = "sqlite", **kw):
+    def _compile(self, spec: QuerySpec, dialect: str = "sqlite", **kw: Any) -> Compiled:
         return compile_query(load(dialect), self.catalog, POLICY, spec, self.limits, now=NOW, **kw)
 
-    def _run(self, spec: QuerySpec):
+    def _run(self, spec: QuerySpec) -> tuple[Compiled, Fetched]:
         compiled = self._compile(spec)
         return compiled, self.executor.fetch(compiled.statement, command="query", limit=compiled.limit)
 
