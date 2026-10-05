@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
+import stat
 import tempfile
 import unittest
 from dataclasses import replace
@@ -81,6 +82,20 @@ class StoreTest(unittest.TestCase):
         (self.root / "tables" / "bad name.md").write_text("# x\n\nformat: 1\n")
         with self.assertRaises(MetadataFormatError):
             self.store.load()
+
+    @unittest.skipIf(os.name == "nt", "POSIX permission bits")
+    def test_atomic_write_keeps_permissions_and_line_endings(self) -> None:
+        """A rewrite keeps the file's mode, a new file gets the process default, and lines end in LF."""
+        target = self.root / "project.md"
+        target.chmod(0o640)
+        atomic_write_text(target, "a\nb\n")
+        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o640)
+        self.assertEqual(target.read_bytes(), b"a\nb\n")
+        control = self.root / "control.md"
+        control.write_text("x")
+        fresh = self.root / "fresh.md"
+        atomic_write_text(fresh, "x")
+        self.assertEqual(stat.S_IMODE(fresh.stat().st_mode), stat.S_IMODE(control.stat().st_mode))
 
     def test_atomic_write_leaves_no_temp_file_on_failure(self) -> None:
         """A failing write removes its temp file and keeps the old content."""

@@ -19,6 +19,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - The MCP server reports the package version by default instead of `0.0.0`, and answers a failure while handling a request with the JSON-RPC internal error code `-32603` instead of `-32600`.
 - Results are always strict JSON. NaN and infinite floats and decimals become `"NaN"`, `"Infinity"`, and `"-Infinity"` instead of invalid JSON, a decimal infinity or signaling NaN no longer raises out of dispatch, and huge integral decimals become text. The MCP server refuses `NaN` and `Infinity` in requests and answers a response that cannot be encoded with `-32603` instead of stopping.
 - A driver failure while opening or closing a cursor is now an `ExecutionError` like any other, a failure to close after a failed statement no longer hides the original error, and cursors that return mappings yield value tuples instead of key tuples.
+- Metadata and cache writes keep the file's permissions instead of narrowing them to owner-only, create new files with the process's normal mode, and always write LF line endings, which the metadata parser requires, including on Windows.
 
 ## [0.1.0] - 2026-09-13
 
