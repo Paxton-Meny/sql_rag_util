@@ -118,6 +118,26 @@ class SubprocessTest(unittest.TestCase):
         self.assertEqual(lines[0]["result"]["serverInfo"], {"name": "sql_rag_util", "version": sql_rag_util.__version__})
         self.assertEqual(lines[1]["result"]["structuredContent"]["rows"][0][1], "Acme Corp")
 
+    def test_flags_choose_tools_and_matching(self) -> None:
+        """--tier and --allow-writes decide which tools are listed; --no-fuzzy leaves substring matching only."""
+        db = self.dir / "shop.db"
+        _database(db)
+        requests = _request(1, "tools/list") + "\n" + _request(2, "tools/call", {"name": "search_rows", "arguments": {"table": "customers", "term": "acme"}}) + "\n"
+
+        def served(*flags: str) -> tuple[list[str], list[str]]:
+            completed = _serve("--sqlite", str(db), "--metadata", str(FIXTURES), "--cache", str(self.tmp / "cache"), *flags, requests=requests)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            listed, searched = (json.loads(line)["result"] for line in completed.stdout.splitlines())
+            return [t["name"] for t in listed["tools"]], searched["structuredContent"].get("strategies", [])
+
+        self.assertEqual(served("--tier", "minimal")[0], ["get_context", "query"])
+        full, fuzzy = served("--tier", "full")
+        self.assertNotIn("edit_column", full)
+        self.assertLessEqual({"soundex", "levenshtein"}, set(fuzzy))
+        writable, plain = served("--tier", "full", "--allow-writes", "--no-fuzzy")
+        self.assertIn("edit_column", writable)
+        self.assertEqual(plain, ["contains"])
+
     def test_uri_characters_in_the_path_are_plain_characters(self) -> None:
         """A path containing '#', '?', '%', and a space opens that file read-only and creates nothing else."""
         db = self.dir / "shop #1?mode=rwc%20.db"
