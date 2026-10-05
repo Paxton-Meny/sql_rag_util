@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 from dataclasses import replace
 
@@ -18,9 +17,8 @@ from sql_rag_util.query.spec import Filter, FilterOp, Measure, QuerySpec
 from sql_rag_util.schema.introspect import introspect
 from sql_rag_util.sql.render import render
 from sql_rag_util.schema.model import TableRef
-from tests.support.fixture import build_fixture
+from tests.support.fixture import FIXTURES, fixture_connection
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 ORDERS = TableRef(None, "orders")
 CUSTOMERS = TableRef(None, "customers")
 
@@ -29,8 +27,7 @@ class AnnotateTest(unittest.TestCase):
     """The fixture metadata annotates the fixture database."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.dialect = load("sqlite")
         self.catalog = introspect(Executor(conn, "qmark"), self.dialect)
         self.metadata = MetadataStore(FIXTURES).load()

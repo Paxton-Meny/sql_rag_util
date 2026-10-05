@@ -15,11 +15,10 @@ from typing import Any
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
 from sql_rag_util.search.sqlite_functions import register_sqlite_functions
-from tests.support.fixture import build_fixture
+from tests.support.fixture import FIXTURES, build_fixture
 
 __all__ = ["QUESTIONS", "run", "main"]
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "metadata"
 
 QUESTIONS: tuple[tuple[str, tuple[tuple[str, dict[str, Any]], ...]], ...] = (
     (

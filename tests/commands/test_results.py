@@ -10,7 +10,7 @@ import unittest
 from sql_rag_util.commands.results import coerce_cell, shape_rows, table_text
 from sql_rag_util.config import Limits
 from sql_rag_util.engine import SqlRag
-from tests.support.fixture import build_fixture
+from tests.support.fixture import fixture_connection
 
 
 def _strict(text: str) -> object:
@@ -54,8 +54,7 @@ class ShapeTest(unittest.TestCase):
 
     def test_infinite_cells_reach_agents_as_strict_json(self) -> None:
         """A REAL column holding infinities comes back through dispatch as valid JSON."""
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         conn.executescript("CREATE TABLE readings (id INTEGER PRIMARY KEY, value REAL); INSERT INTO readings VALUES (1, 1e999), (2, -1e999), (3, 0.5);")
         engine = SqlRag(conn)
         envelope = _strict(engine.dispatcher().call_json("query", {"table": "readings"}))

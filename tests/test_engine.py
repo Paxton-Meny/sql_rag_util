@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 
 from sql_rag_util.config import Config, Limits
@@ -11,9 +10,8 @@ from sql_rag_util.exceptions import ConfigurationError, DialectDetectionError
 from sql_rag_util.query.spec import Filter, FilterOp
 from sql_rag_util.schema.model import TableRef
 from tests.support.fakes import fake_driver
-from tests.support.fixture import build_fixture
+from tests.support.fixture import FIXTURES, build_fixture
 
-FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures" / "metadata"
 
 
 class EngineTest(unittest.TestCase):
@@ -54,7 +52,7 @@ class EngineTest(unittest.TestCase):
     def test_dialect_and_paramstyle_handling(self) -> None:
         """Ambiguous drivers need an explicit dialect; an unknown paramstyle is refused."""
         with self.assertRaises(DialectDetectionError):
-            SqlRag(fake_driver("pyodbc", "qmark")())
+            SqlRag(fake_driver(self, "pyodbc", "qmark")())
         with self.assertRaises(ConfigurationError):
             SqlRag(self.conn, paramstyle="dollar")
         engine = SqlRag(self.conn, dialect="sqlite3", paramstyle="named", config=Config(limits=Limits(max_rows=5)))

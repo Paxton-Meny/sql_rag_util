@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
-from tests.support.fixture import build_fixture
-
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
+from tests.support.fixture import FIXTURES, fixture_connection
 
 
 class ToolsTest(unittest.TestCase):
     """query, describe_table, and list_tables through dispatch."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.engine = SqlRag(conn, metadata_root=FIXTURES, config=Config(reveal_sql=True))
 
     def test_tool_specs_by_tier(self) -> None:
@@ -82,8 +78,7 @@ class ToolsTest(unittest.TestCase):
 
     def test_scope_is_invisible_and_applied(self) -> None:
         """A developer scope filter narrows every query on its table."""
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         scoped = SqlRag(conn, metadata_root=FIXTURES, config=Config(scope=lambda t: ({"column": "region", "op": "eq", "value": "north"},) if t == "customers" else ()))
         self.assertEqual(scoped.dispatch("query", {"table": "customers", "measures": [{"fn": "count"}]})["rows"], [[2]])
 

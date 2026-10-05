@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 
 from sql_rag_util.engine import SqlRag
 from sql_rag_util.retrieval.cards import card_text, summary_text, table_card, table_summary
 from sql_rag_util.schema.model import TableRef
-from tests.support.fixture import build_fixture
-
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
+from tests.support.fixture import FIXTURES, fixture_connection
 
 
 class CardsTest(unittest.TestCase):
     """Cards carry keys, flags, values, relationships, concepts, and measures compactly."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.engine = SqlRag(conn, metadata_root=FIXTURES)
 
     def test_orders_card(self) -> None:

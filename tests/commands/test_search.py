@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
 from sql_rag_util.search.sqlite_functions import register_sqlite_functions
-from tests.support.fixture import build_fixture
+from tests.support.fixture import FIXTURES, build_fixture
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 
 
 class SearchRowsTest(unittest.TestCase):

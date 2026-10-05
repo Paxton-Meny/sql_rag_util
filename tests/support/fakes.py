@@ -5,10 +5,14 @@ from __future__ import annotations
 import sys
 import types
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from sql_rag_util.dialects.base import Dialect
 from sql_rag_util.schema.model import ColumnKind, TableRef
 from sql_rag_util.sql.statement import Statement, sql
+
+if TYPE_CHECKING:
+    import unittest
 
 __all__ = ["FakeCursor", "FakeConnection", "fake_driver", "StubDialect"]
 
@@ -57,15 +61,22 @@ class FakeConnection:
         self.commits += 1
 
 
-def fake_driver(name: str, paramstyle: str | None) -> type:
-    """Register a fake driver module called ``name`` and return a connection class from it."""
+def fake_driver(test: unittest.TestCase, name: str, paramstyle: str | None) -> type[FakeConnection]:
+    """Register a fake driver module called ``name`` until ``test`` ends and return a connection class from it."""
     module = types.ModuleType(name)
     if paramstyle is not None:
-        module.paramstyle = paramstyle
+        setattr(module, "paramstyle", paramstyle)
+    previous = sys.modules.get(name)
     sys.modules[name] = module
-    cls = type("Connection", (FakeConnection,), {"__module__": f"{name}.connections"})
-    return cls
+    test.addCleanup(_restore_module, name, previous)
+    return type("Connection", (FakeConnection,), {"__module__": f"{name}.connections"})
 
+
+def _restore_module(name: str, previous: types.ModuleType | None) -> None:
+    if previous is None:
+        sys.modules.pop(name, None)
+    else:
+        sys.modules[name] = previous
 
 
 class StubDialect(Dialect):

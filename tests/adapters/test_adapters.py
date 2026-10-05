@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pathlib
 import unittest
 from typing import Any
 
 from sql_rag_util.adapters import anthropic, mcp, openai
 from sql_rag_util.engine import SqlRag
-from tests.support.fixture import build_fixture
-
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
+from tests.support.fixture import FIXTURES, fixture_connection
 
 
 def _walk(schema: dict[str, Any]) -> list[dict[str, Any]]:
@@ -28,8 +25,7 @@ class AdapterTest(unittest.TestCase):
     """One spec yields each framework's shape."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.engine = SqlRag(conn, metadata_root=FIXTURES)
 
     def test_anthropic(self) -> None:

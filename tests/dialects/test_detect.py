@@ -25,7 +25,7 @@ class DetectTest(unittest.TestCase):
         }
         for driver, (dialect, style) in cases.items():
             with self.subTest(driver=driver):
-                found = detect(fake_driver(driver, style)())
+                found = detect(fake_driver(self, driver, style)())
                 self.assertEqual((found.dialect, found.paramstyle, found.driver), (dialect, style, driver))
 
     def test_live_sqlite(self) -> None:
@@ -37,14 +37,14 @@ class DetectTest(unittest.TestCase):
 
     def test_missing_or_bad_paramstyle_is_none(self) -> None:
         """A driver without a valid paramstyle attribute yields None so the dialect default applies."""
-        self.assertIsNone(detect(fake_driver("mariadb", None)()).paramstyle)
-        self.assertIsNone(detect(fake_driver("pymysql", "dollar")()).paramstyle)
+        self.assertIsNone(detect(fake_driver(self, "mariadb", None)()).paramstyle)
+        self.assertIsNone(detect(fake_driver(self, "pymysql", "dollar")()).paramstyle)
 
     def test_ambiguous_and_unknown_require_explicit_dialect(self) -> None:
         """pyodbc and unknown drivers raise with suggestions; an explicit dialect wins."""
         for driver in ("pyodbc", "somethingelse"):
             with self.subTest(driver=driver):
-                conn = fake_driver(driver, "qmark")()
+                conn = fake_driver(self, driver, "qmark")()
                 with self.assertRaises(DialectDetectionError) as ctx:
                     detect(conn)
                 self.assertIn("mssql", ctx.exception.suggestions)
@@ -52,7 +52,7 @@ class DetectTest(unittest.TestCase):
 
     def test_explicit_dialect_overrides_detection(self) -> None:
         """A caller's dialect wins even when the driver is known."""
-        self.assertEqual(detect(fake_driver("pymysql", "format")(), dialect="mssql").dialect, "mssql")
+        self.assertEqual(detect(fake_driver(self, "pymysql", "format")(), dialect="mssql").dialect, "mssql")
 
 
 class RegistryTest(unittest.TestCase):

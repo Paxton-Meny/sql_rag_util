@@ -15,9 +15,8 @@ from unittest import mock
 import sql_rag_util
 from sql_rag_util.engine import SqlRag
 from sql_rag_util.mcp.server import PROTOCOL_VERSION, handle_message, serve_stdio
-from tests.support.fixture import FIXTURE_SQL, build_fixture
+from tests.support.fixture import FIXTURE_SQL, FIXTURES, fixture_connection
 
-FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
 
@@ -29,8 +28,7 @@ class HandleMessageTest(unittest.TestCase):
     """Each method answers per JSON-RPC, and notifications are silent."""
 
     def setUp(self) -> None:
-        conn = build_fixture()
-        self.addCleanup(conn.close)
+        conn = fixture_connection(self)
         self.engine = SqlRag(conn, metadata_root=FIXTURES)
 
     def test_methods(self) -> None:
