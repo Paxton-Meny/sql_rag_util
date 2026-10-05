@@ -1,7 +1,8 @@
 """Optional embedding retrieval through a developer-supplied function.
 
-The package sends only identifiers, metadata prose, and glossary text to the
-function, never cell values. Vectors are cached by schema version.
+The package sends the question text, identifiers of visible columns, and the
+text written in metadata and the glossary to the function, never values read
+from the database. Vectors are cached by schema version.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 ## Decision
 
-The package sets no timeout on statements. Each driver's own timeout mechanism is documented for the caller.
+The package sets no timeout on statements. A caller who needs one sets it on the connection or the database before passing it in: `statement_timeout` on a PostgreSQL role or session, `max_execution_time` on MySQL (`max_statement_time` on MariaDB), the query timeout of the SQL Server driver (`timeout` on a pyodbc connection or in pymssql's `connect`), or a progress handler on a SQLite connection.
 
 ## Alternative weighed
 

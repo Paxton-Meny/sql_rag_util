@@ -152,7 +152,7 @@ The single section is `Terms`. Bullet grammar: `- <term>: <definition>`. Sub-bul
 
 ## Provenance
 
-Every entry written through the toolkit carries `source: agent, <date>`. Developer-written entries carry no `source` line or `source: developer`. The toolkit never removes `sensitive` or `hidden`.
+Column entries written through the toolkit carry `source: agent, <date>`. Other toolkit edits (table purpose, description, and synonyms, relationship text, concepts, glossary terms) carry no source line, so review metadata changes in version control. Developer-written entries carry no `source` line or `source: developer`. The toolkit never sets or removes `sensitive` or `hidden`.
 
 ## Canonical form
 

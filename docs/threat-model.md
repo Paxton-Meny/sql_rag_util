@@ -37,21 +37,21 @@ Controls: paths are resolved and checked for containment; symlink escapes and `.
 
 ### Toolkit writes
 
-Threat: an agent rewriting metadata to unmark a sensitive column or to add a concept that leaks data.
+Threat: an agent rewriting metadata to unmark a sensitive column or to add a concept that leaks data; text that smuggles structure into a file, such as a newline that plants a header key or a second, unflagged entry for a protected column; an edit that overwrites a change the developer made on disk.
 
-Controls: writes are off unless the developer enables them. The `sensitive` and `hidden` flags cannot be removed through the toolkit, only added. Every agent edit carries a provenance line with source and date so a developer can review. Files are rewritten canonically from the model, never edited in place, and written atomically.
+Controls: writes are off unless the developer enables them. The toolkit never sets or clears `sensitive` or `hidden`, and a hidden column cannot be named at all. Concepts an agent writes are validated against the same column policy as its queries, so they cannot touch a sensitive or hidden column. Text fields must be a single line without control or direction characters, list entries cannot contain commas, and every save renders the file, parses it back, and writes only when the result is identical. An edit is refused when the files changed on disk since they were loaded, and a failed reload after a write restores the previous file. Column edits carry `source: agent, <date>`; table, relationship, concept, and glossary edits do not, so review metadata changes in version control. Files are rewritten canonically from the model, never edited in place, and written atomically with the file's existing permissions.
 
 ### Value index and samples
 
 Threat: data exfiltration through examples; unbounded catalog scans.
 
-Controls: the index is off by default and enabled per project. It never reads sensitive or hidden columns. Each column costs one bounded statement, values are truncated to the cell cap, and columns over the distinct cap keep only samples. Cache files live under the developer's cache directory and are keyed by the catalog fingerprint.
+Controls: the index is off by default and enabled per project. It never reads sensitive or hidden columns. Each column costs one bounded statement, each value is cut to 80 characters, and columns over the distinct cap keep only samples. The cache holds those values as plain text, by default in `.cache/` under the metadata directory, keyed by the catalog fingerprint; keep it out of version control.
 
 ### Caches and filesystem
 
 Threat: cache poisoning; writing outside intended directories.
 
-Controls: cache files are written atomically under the configured cache directory only. A cache whose fingerprint does not match the live catalog is discarded, never merged.
+Controls: cache names are identifiers, and cache files are written atomically under the configured cache directory only. A cache whose fingerprint does not match the live catalog, or that cannot be read as the expected document, is ignored and rebuilt, never merged.
 
 ### Connection and dialect
 
@@ -63,10 +63,20 @@ Controls: detection maps only known driver modules; ambiguous drivers require an
 
 Threat: a developer-supplied function that leaks schema text to a third party.
 
-Controls: this is the developer's choice and authority. The documentation states exactly what text is passed to the hook (identifiers, metadata prose, glossary) and that no cell values are ever sent.
+Controls: this is the developer's choice and authority. The hook receives the question text, and for each table the names of the table and its visible columns, the purpose, description, and synonyms, the column descriptions, synonyms, and known values written in metadata, concept names and text, relationship names, and related glossary entries. It never receives values read from the database or anything about hidden columns.
+
+## Deployment
+
+The package is one layer. These belong to the developer and complete it:
+
+- Connect as a database user that can only read, and only the tables and columns the agent should reach. Database grants hold even if a flag in metadata is wrong; the flags do not replace them.
+- Set a statement timeout on the connection through the driver or the database, since the package sets none (see `design/no-statement-timeouts-in-v1.md`).
+- Take scope filter values from the application's session, never from text the agent supplied.
+- Keep `Config(reveal_sql=True)` off wherever an agent is served, because the revealed statement includes scope predicates.
+- Keep the cache directory out of version control.
 
 ## Out of scope
 
 - Denial of service by many legitimate bounded queries. Rate limiting belongs to the caller.
-- A database user with more privileges than the package needs. The documentation recommends a read-only user.
+- A database user with more privileges than the package needs. See Deployment.
 - Prompt injection carried in cell values. The package returns data faithfully; the agent's harness must treat it as data.

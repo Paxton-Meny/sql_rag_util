@@ -101,7 +101,9 @@ class Config:
         Audit hook called after every executed statement.
     embed
         Optional function from texts to vectors for schema retrieval. It
-        receives identifiers and metadata text only, never cell values.
+        receives the question text and, per table, identifiers of visible
+        columns and the text written in metadata; never values read from the
+        database. ``docs/threat-model.md`` lists every field.
     """
 
     limits: Limits = Limits()
