@@ -34,6 +34,19 @@ def _result(identifier: object, result: object) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": identifier, "result": result}
 
 
+def _refuse_constant(name: str) -> object:
+    raise ValueError(f"{name} is not JSON")
+
+
+def _encode(response: dict[str, Any], on_error: Callable[[str], None] | None) -> str:
+    try:
+        return json.dumps(response, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        if on_error is not None:
+            on_error(f"{type(exc).__name__}: {exc}")
+        return json.dumps(_error(response.get("id"), _INTERNAL_ERROR, f"internal error: {type(exc).__name__}"))
+
+
 def handle_message(engine: SqlRag, message: object, *, tier: str = "standard", version: str | None = None) -> dict[str, Any] | None:
     """Return the response for one request, or ``None`` for a notification.
 
@@ -84,8 +97,10 @@ def serve_stdio(
     """Read requests line by line until end of input, writing one response per line.
 
     A server must answer every request rather than die on one, so any
-    exception raised while handling a request is passed to ``on_error`` and
-    answered as a JSON-RPC internal error (-32603) naming only its type.
+    exception raised while handling a request or encoding its response is
+    passed to ``on_error`` and answered as a JSON-RPC internal error (-32603)
+    naming only its type. Input and output are strict JSON: ``NaN`` and
+    ``Infinity`` are parse errors coming in and never written going out.
     """
     reader = stdin if stdin is not None else sys.stdin
     writer = stdout if stdout is not None else sys.stdout
@@ -94,7 +109,7 @@ def serve_stdio(
         if not line:
             continue
         try:
-            message = json.loads(line)
+            message = json.loads(line, parse_constant=_refuse_constant)
         except ValueError:
             response: dict[str, Any] | None = _error(None, _PARSE_ERROR, "parse error")
         else:
@@ -105,5 +120,5 @@ def serve_stdio(
                     on_error(f"{type(exc).__name__}: {exc}")
                 response = _error(message.get("id") if isinstance(message, dict) else None, _INTERNAL_ERROR, f"internal error: {type(exc).__name__}")
         if response is not None:
-            writer.write(json.dumps(response, separators=(",", ":"), ensure_ascii=False) + "\n")
+            writer.write(_encode(response, on_error) + "\n")
             writer.flush()

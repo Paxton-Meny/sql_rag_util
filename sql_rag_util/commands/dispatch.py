@@ -79,4 +79,4 @@ class Dispatcher:
 
     def call_json(self, name: str, arguments: object) -> str:
         """Return :meth:`call` serialized compactly."""
-        return json.dumps(self.call(name, arguments), separators=(",", ":"), ensure_ascii=False)
+        return json.dumps(self.call(name, arguments), separators=(",", ":"), ensure_ascii=False, allow_nan=False)

@@ -66,6 +66,18 @@ class HandleMessageTest(unittest.TestCase):
         self.assertEqual(second["result"], {})
         self.assertEqual(reported, ["RuntimeError: boom"])
 
+    def test_input_and_output_are_strict_json(self) -> None:
+        """NaN is a parse error coming in, and a response that cannot be strict JSON becomes -32603."""
+        stdin = io.StringIO('{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {"x": NaN}}\n' + _request(2, "ping") + "\n")
+        stdout = io.StringIO()
+        reported: list[str] = []
+        with mock.patch("sql_rag_util.mcp.server.handle_message", return_value={"jsonrpc": "2.0", "id": 2, "result": {"x": float("nan")}}):
+            serve_stdio(self.engine, stdin=stdin, stdout=stdout, on_error=reported.append)
+        first, second = (json.loads(line) for line in stdout.getvalue().splitlines())
+        self.assertEqual(first["error"]["code"], -32700)
+        self.assertEqual((second["id"], second["error"]["code"]), (2, -32603))
+        self.assertEqual(len(reported), 1)
+
     def test_serve_stdio_streams(self) -> None:
         """Lines in, one response line per request out; parse errors are answered too."""
         stdin = io.StringIO(_request(1, "ping") + "\n\nnot json\n" + json.dumps({"jsonrpc": "2.0", "method": "notifications/x"}) + "\n")

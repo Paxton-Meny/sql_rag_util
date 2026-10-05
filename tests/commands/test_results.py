@@ -4,10 +4,20 @@ from __future__ import annotations
 
 import datetime as dt
 import decimal
+import json
 import unittest
 
 from sql_rag_util.commands.results import coerce_cell, shape_rows, table_text
 from sql_rag_util.config import Limits
+from sql_rag_util.engine import SqlRag
+from tests.support.fixture import build_fixture
+
+
+def _strict(text: str) -> object:
+    def refuse(name: str) -> object:
+        raise ValueError(name)
+
+    return json.loads(text, parse_constant=refuse)
 
 
 class ShapeTest(unittest.TestCase):
@@ -26,6 +36,30 @@ class ShapeTest(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(coerce_cell(value, 200)[0], expected)
         self.assertEqual(coerce_cell("abcdef", 3), ("abc…", True))
+
+    def test_values_json_cannot_represent(self) -> None:
+        """NaN, infinities, signaling NaN, and huge decimals become strict JSON and never raise."""
+        cases = [
+            (float("nan"), "NaN"), (float("inf"), "Infinity"), (float("-inf"), "-Infinity"),
+            (decimal.Decimal("NaN"), "NaN"), (decimal.Decimal("sNaN"), "NaN"),
+            (decimal.Decimal("Infinity"), "Infinity"), (decimal.Decimal("-Infinity"), "-Infinity"),
+            (decimal.Decimal("1E+2000"), "1E+2000"), (decimal.Decimal("1.5E+400"), int("15" + "0" * 399)),
+            (decimal.Decimal("123456789012345678901234567890"), 123456789012345678901234567890),
+        ]
+        for value, expected in cases:
+            with self.subTest(value=value):
+                cell = coerce_cell(value, 200)[0]
+                self.assertEqual(cell, expected)
+                self.assertEqual(_strict(json.dumps(cell, allow_nan=False)), expected)
+
+    def test_infinite_cells_reach_agents_as_strict_json(self) -> None:
+        """A REAL column holding infinities comes back through dispatch as valid JSON."""
+        conn = build_fixture()
+        self.addCleanup(conn.close)
+        conn.executescript("CREATE TABLE readings (id INTEGER PRIMARY KEY, value REAL); INSERT INTO readings VALUES (1, 1e999), (2, -1e999), (3, 0.5);")
+        engine = SqlRag(conn)
+        envelope = _strict(engine.dispatcher().call_json("query", {"table": "readings"}))
+        self.assertEqual(envelope["rows"], [[1, "Infinity"], [2, "-Infinity"], [3, 0.5]])
 
     def test_shape_and_text(self) -> None:
         """Truncated cells are counted and text cells never contain tabs or newlines."""
