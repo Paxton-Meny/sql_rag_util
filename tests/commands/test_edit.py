@@ -7,9 +7,11 @@ import pathlib
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
+from sql_rag_util.exceptions import IntrospectionError
 from tests.support.fixture import build_fixture
 
 FIXTURES = pathlib.Path(__file__).resolve().parent.parent / "fixtures" / "metadata"
@@ -79,6 +81,63 @@ class ToolkitTest(unittest.TestCase):
         terms = [e.term for e in self.engine.annotated.metadata.glossary]
         self.assertEqual(terms.count("sku") + terms.count("SKU"), 1)
         self.assertEqual(self.engine.dispatch("edit_glossary", {"term": "x", "definition": "y", "tables": ["nowhere"]}, tier="full")["error"]["type"], "MetadataFormatError")
+
+    def _files(self) -> dict[str, str]:
+        return {p.relative_to(self.root).as_posix(): p.read_text() for p in sorted(self.root.rglob("*.md"))}
+
+    def test_text_that_would_add_structure_is_refused(self) -> None:
+        """Line breaks, direction controls, commas in lists, and bad names change nothing on disk."""
+        cases = [
+            ("edit_table", {"table": "orders", "purpose": "p\nsynonyms: injected"}),
+            ("edit_table", {"table": "orders", "description": "x\n## Columns\n\n- email: unflagged"}),
+            ("edit_table", {"table": "orders", "synonyms": ["order, purchase"]}),
+            ("edit_column", {"table": "customers", "column": "region", "text": "t\n- email: unflagged"}),
+            ("edit_column", {"table": "customers", "column": "region", "text": "t\u2028- email: unflagged"}),
+            ("edit_column", {"table": "customers", "column": "region", "text": "t", "values": ["north,south"]}),
+            ("edit_relationship", {"table": "orders", "name": "shipments", "text": "x\n- notes: y"}),
+            ("edit_concept", {"table": "orders", "name": "Big One", "text": "x", "where": [{"column": "amount", "op": "gt", "value": 1}]}),
+            ("edit_concept", {"table": "orders", "name": "big", "text": "x\u202ey", "where": [{"column": "amount", "op": "gt", "value": 1}]}),
+            ("edit_glossary", {"term": "a\nb", "definition": "x"}),
+            ("edit_glossary", {"term": "a]", "definition": "x"}),
+            ("edit_glossary", {"term": "sku", "definition": "x", "synonyms": ["a,b"]}),
+        ]
+        before = self._files()
+        for tool, arguments in cases:
+            with self.subTest(tool=tool, arguments=arguments):
+                result = self.engine.dispatch(tool, arguments, tier="full")
+                self.assertIn(result.get("error", {}).get("type"), ("QuerySpecError", "MetadataFormatError"))
+                self.assertEqual(self._files(), before)
+        SqlRag(build_fixture(), metadata_root=self.root)
+
+    def test_flags_survive_a_two_step_injection(self) -> None:
+        """Text cannot plant a second, unflagged entry that a later edit would keep instead of the flagged one."""
+        self.engine.dispatch("edit_column", {"table": "customers", "column": "region", "text": "t\n- email: unflagged"}, tier="full")
+        result = self.engine.dispatch("edit_column", {"table": "customers", "column": "email", "text": "Contact address."}, tier="full")
+        self.assertNotIn("error", result)
+        text = (self.root / "tables" / "customers.md").read_text()
+        self.assertEqual(text.count("- email"), 1)
+        self.assertIn("- email [sensitive]: Contact address.", text)
+
+    def test_disk_changes_since_load_refuse_the_edit(self) -> None:
+        """A developer's edit on disk is never overwritten; the engine reloads and a retry applies on top."""
+        path = self.root / "tables" / "orders.md"
+        developer = path.read_text().replace("- notes [hidden]: Staff notes.", "- notes [hidden]: Staff notes.\n- billing_customer_id [sensitive]: Who pays.")
+        path.write_text(developer)
+        result = self.engine.dispatch("edit_column", {"table": "orders", "column": "status", "text": "State."}, tier="full")
+        self.assertEqual(result["error"]["type"], "MetadataConflictError")
+        self.assertEqual(path.read_text(), developer)
+        self.assertTrue(self.engine.annotated.policy.is_sensitive(next(t.ref for t in self.engine.catalog.tables if t.ref.name == "orders"), "billing_customer_id"))
+        self.assertNotIn("error", self.engine.dispatch("edit_column", {"table": "orders", "column": "status", "text": "State."}, tier="full"))
+        self.assertIn("- billing_customer_id [sensitive]: Who pays.", path.read_text())
+
+    def test_failed_refresh_restores_the_previous_file(self) -> None:
+        """When the engine cannot reload after a write, the file goes back to what it was, or away if it was new."""
+        before = self._files()
+        with mock.patch.object(self.engine, "refresh", side_effect=IntrospectionError("database went away")):
+            changed = self.engine.dispatch("edit_column", {"table": "orders", "column": "status", "text": "State."}, tier="full")
+            created = self.engine.dispatch("edit_table", {"table": "shipments", "purpose": "One row per parcel."}, tier="full")
+        self.assertEqual((changed["error"]["type"], created["error"]["type"]), ("IntrospectionError", "IntrospectionError"))
+        self.assertEqual(self._files(), before)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ import pathlib
 import shutil
 import tempfile
 import unittest
+from dataclasses import replace
 from unittest import mock
 
 from sql_rag_util.atomic import atomic_write_text
@@ -50,6 +51,19 @@ class StoreTest(unittest.TestCase):
         self.assertEqual([p.name for p in path.parent.iterdir() if p.name.startswith(".")], [])
         self.assertTrue(self.store.remove_table("shipments"))
         self.assertFalse(self.store.remove_table("shipments"))
+
+    def test_values_that_would_read_back_differently_are_never_written(self) -> None:
+        """A rendering that parses to something else, or not at all, raises before touching the file."""
+        path = self.root / "tables" / "orders.md"
+        before = path.read_text()
+        orders = self.store.load().table("orders")
+        planted = ColumnMeta("status", "t\n- notes: visible")
+        split = ColumnMeta("status", "t", values=("open,paid",))
+        for column in (planted, split):
+            with self.subTest(column=column):
+                with self.assertRaisesRegex(MetadataFormatError, "tables/orders.md"):
+                    self.store.save_table(replace(orders, columns=(column,)))
+                self.assertEqual(path.read_text(), before)
 
     def test_bad_stems_and_escapes_are_refused(self) -> None:
         """Stems must be table names and paths must stay inside the root."""

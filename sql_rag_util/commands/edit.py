@@ -1,40 +1,91 @@
 """The metadata toolkit: tools that let an agent record what it learned.
 
-Every edit is load, replace, validate against the catalog, write canonically,
-refresh. Agent edits carry ``source: agent, <date>``. The toolkit never adds
-or removes the ``sensitive`` and ``hidden`` flags; those belong to the developer.
+Every edit is: check the agent's text, replace the entry, validate against the
+catalog, refuse if the files on disk changed since they were loaded, write
+canonically (refusing anything that would not read back identically), and
+refresh, restoring the previous file if the refresh fails. Column edits carry
+``source: agent, <date>``. The toolkit never adds or removes the ``sensitive``
+and ``hidden`` flags; those belong to the developer.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import unicodedata
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
 
+from sql_rag_util.atomic import atomic_write_text
 from sql_rag_util.commands.spec import CommandResult, ToolSpec
-from sql_rag_util.exceptions import ConfigurationError, QuerySpecError
+from sql_rag_util.exceptions import ConfigurationError, MetadataConflictError, QuerySpecError
 from sql_rag_util.metadata.model import ColumnMeta, ConceptMeta, GlossaryEntry, Metadata, RelationshipMeta, TableMeta
 from sql_rag_util.query.spec import Filter
 from sql_rag_util.schema.resolve import agent_name, resolve_column, resolve_table
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
     from sql_rag_util.engine import SqlRag
+    from sql_rag_util.metadata.store import MetadataStore
 
 __all__ = ["EDIT_TABLE", "EDIT_COLUMN", "EDIT_RELATIONSHIP", "EDIT_CONCEPT", "EDIT_GLOSSARY", "TOOLKIT"]
 
 _PROTECTED_FLAGS = frozenset({"sensitive", "hidden"})
+_LINE_BREAKING = frozenset({"Cc", "Zl", "Zp"})
+_BIDI_CONTROLS = frozenset("\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
 
 
 def _source() -> str:
     return f"agent, {dt.date.today().isoformat()}"
 
 
-def _store(engine: SqlRag):  # type: ignore[no-untyped-def]
-    if engine.store is None:
+def _line(value: str, what: str) -> str:
+    text = value.strip()
+    if any(unicodedata.category(ch) in _LINE_BREAKING or ch in _BIDI_CONTROLS for ch in text):
+        raise QuerySpecError(f"{what} must be one line of plain text, without control or direction characters")
+    return text
+
+
+def _items(values: tuple[str, ...], what: str) -> tuple[str, ...]:
+    items = tuple(_line(v, what) for v in values)
+    if any("," in v for v in items):
+        raise QuerySpecError(f"{what} entries cannot contain commas")
+    return tuple(v for v in items if v)
+
+
+def _prose(value: str) -> str:
+    lines = [_line(line, "description") for line in value.strip().split("\n")]
+    if any(line.startswith("#") for line in lines):
+        raise QuerySpecError("description lines cannot start with '#'")
+    return "\n".join(lines)
+
+
+def _store(engine: SqlRag) -> MetadataStore:
+    store = engine.store
+    if store is None:
         raise ConfigurationError("metadata edits need a metadata_root")
     if not engine.config.allow_metadata_writes:
         raise ConfigurationError("metadata edits are disabled; set Config.allow_metadata_writes")
-    return engine.store
+    return store
+
+
+def _save(engine: SqlRag, candidate: Metadata, path: Path, write: Callable[[], Path]) -> None:
+    store = _store(engine)
+    if store.load() != engine.annotated.metadata:
+        engine.refresh()
+        raise MetadataConflictError("the metadata files changed on disk since they were loaded; they have been reloaded, so review them and retry")
+    engine.validate_metadata(candidate)
+    previous = path.read_text(encoding="utf-8") if path.is_file() else None
+    write()
+    try:
+        engine.refresh()
+    except BaseException:
+        if previous is None:
+            path.unlink(missing_ok=True)
+        else:
+            atomic_write_text(path, previous)
+        raise
 
 
 def _table_meta(engine: SqlRag, name: str) -> tuple[TableMeta, str]:
@@ -50,9 +101,8 @@ def _commit_table(engine: SqlRag, meta: TableMeta, what: str) -> CommandResult:
         raise QuerySpecError(f"{meta.table} has no purpose yet; call edit_table with a purpose first")
     others = tuple(t for t in engine.annotated.metadata.tables if t.table != meta.table)
     candidate = replace(engine.annotated.metadata, tables=others + (meta,))
-    engine.validate_metadata(candidate)
-    path = store.save_table(meta)
-    engine.refresh()
+    path = store.table_path(meta.table)
+    _save(engine, candidate, path, lambda: store.save_table(meta))
     return CommandResult({"written": store.root.joinpath(path).relative_to(store.root).as_posix(), "table": meta.table, "changed": what}, f"wrote {path.name}: {what}")
 
 
@@ -70,11 +120,11 @@ def edit_table(engine: SqlRag, args: EditTableArgs) -> CommandResult:
     """Set a table's purpose, description, or synonyms."""
     meta, _ = _table_meta(engine, args.table)
     if args.purpose is not None:
-        meta = replace(meta, purpose=args.purpose.strip())
+        meta = replace(meta, purpose=_line(args.purpose, "purpose"))
     if args.description is not None:
-        meta = replace(meta, description=args.description.strip())
+        meta = replace(meta, description=_prose(args.description))
     if args.synonyms is not None:
-        meta = replace(meta, synonyms=tuple(s.strip() for s in args.synonyms if s.strip()))
+        meta = replace(meta, synonyms=_items(args.synonyms, "synonyms"))
     return _commit_table(engine, meta, "table")
 
 
@@ -105,10 +155,10 @@ def edit_column(engine: SqlRag, args: EditColumnArgs) -> CommandResult:
             flags.add("searchable")
     updated = ColumnMeta(
         column.name,
-        args.text.strip(),
+        _line(args.text, "text"),
         frozenset(flags),
-        tuple(v.strip() for v in args.values if v.strip()) if args.values is not None else existing.values,
-        tuple(s.strip() for s in args.synonyms if s.strip()) if args.synonyms is not None else existing.synonyms,
+        _items(args.values, "values") if args.values is not None else existing.values,
+        _items(args.synonyms, "synonyms") if args.synonyms is not None else existing.synonyms,
         _source(),
     )
     columns = tuple(c for c in meta.columns if c.name != column.name) + (updated,)
@@ -127,8 +177,9 @@ class EditRelationshipArgs:
 def edit_relationship(engine: SqlRag, args: EditRelationshipArgs) -> CommandResult:
     """Describe an existing relationship."""
     meta, _ = _table_meta(engine, args.table)
-    entries = tuple(r for r in meta.relationships if r.name != args.name) + (RelationshipMeta(args.name, args.text.strip()),)
-    return _commit_table(engine, replace(meta, relationships=entries), f"relationship {args.name}")
+    name = _line(args.name, "name")
+    entries = tuple(r for r in meta.relationships if r.name != name) + (RelationshipMeta(name, _line(args.text, "text")),)
+    return _commit_table(engine, replace(meta, relationships=entries), f"relationship {name}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,8 +197,9 @@ def edit_concept(engine: SqlRag, args: EditConceptArgs) -> CommandResult:
     if not args.where:
         raise QuerySpecError("a concept needs at least one filter")
     meta, _ = _table_meta(engine, args.table)
-    entries = tuple(c for c in meta.concepts if c.name != args.name) + (ConceptMeta(args.name, args.text.strip(), tuple(args.where)),)
-    return _commit_table(engine, replace(meta, concepts=entries), f"concept {args.name}")
+    name = _line(args.name, "name")
+    entries = tuple(c for c in meta.concepts if c.name != name) + (ConceptMeta(name, _line(args.text, "text"), tuple(args.where)),)
+    return _commit_table(engine, replace(meta, concepts=entries), f"concept {name}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,15 +215,14 @@ class EditGlossaryArgs:
 def edit_glossary(engine: SqlRag, args: EditGlossaryArgs) -> CommandResult:
     """Define or replace a glossary term."""
     store = _store(engine)
-    term = args.term.strip()
-    if not term or ":" in term or "[" in term:
-        raise QuerySpecError("term must be non-empty and contain no colon or bracket")
-    entry = GlossaryEntry(term, args.definition.strip(), tuple(args.synonyms or ()), tuple(args.tables or ()))
+    term = _line(args.term, "term")
+    if not term or any(ch in term for ch in ":[],"):
+        raise QuerySpecError("term must be non-empty and contain no colon, bracket, or comma")
+    entry = GlossaryEntry(term, _line(args.definition, "definition"), _items(args.synonyms or (), "synonyms"), _items(args.tables or (), "tables"))
     entries = tuple(e for e in engine.annotated.metadata.glossary if e.term.lower() != term.lower()) + (entry,)
     candidate: Metadata = replace(engine.annotated.metadata, glossary=entries)
-    engine.validate_metadata(candidate)
-    path = store.save_glossary(entries)
-    engine.refresh()
+    path = store.glossary_path()
+    _save(engine, candidate, path, lambda: store.save_glossary(entries))
     return CommandResult({"written": path.name, "term": term}, f"wrote {path.name}: {term}")
 
 

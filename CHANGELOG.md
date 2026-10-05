@@ -12,6 +12,9 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 - Hidden column names no longer leak through "did you mean" suggestions, the metadata toolkit, foreign key targets on cards, or default ordering.
 - A column flagged `fulltext` can no longer also be `sensitive` or `hidden`.
+- Metadata toolkit edits can no longer write structure into a file. Text fields must be one line without control or direction characters, list entries cannot contain commas, description lines cannot start with `#`, and every save renders, parses back, and refuses to write unless the result is identical. A failed refresh after a write restores the previous file.
+- An edit is refused with the new `MetadataConflictError` when the metadata files changed on disk since they were loaded. The engine reloads them, so a retry applies on top of the developer's change instead of overwriting it.
+- Duplicate column, relationship, concept, and measure names in a table file are format errors, and a failed `SqlRag.refresh()` leaves the engine unchanged.
 
 ## [0.1.0] - 2026-09-13
 

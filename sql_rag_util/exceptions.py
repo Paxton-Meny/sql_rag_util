@@ -25,6 +25,7 @@ __all__ = [
     "MetadataError",
     "MetadataFormatError",
     "MetadataPathError",
+    "MetadataConflictError",
     "ToolSpecError",
     "UnknownToolError",
     "ArgumentError",
@@ -133,6 +134,10 @@ class MetadataFormatError(MetadataError):
 
 class MetadataPathError(MetadataError):
     """A metadata or cache path escapes its root."""
+
+
+class MetadataConflictError(MetadataError):
+    """The metadata on disk changed after it was loaded, so an edit was refused."""
 
 
 class ToolSpecError(SqlRagError):

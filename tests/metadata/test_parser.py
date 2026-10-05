@@ -63,6 +63,10 @@ class ParseTableTest(unittest.TestCase):
             base + "\n## Measures\n\n- m: x\n  - expr: {\"fn\": \"sum\"}\n": 9,
             base + "\n## Measures\n\n- m: x\n  - expr: {\"fn\": \"count\", \"extra\": 1}\n": 9,
             base + "\n## Relationships\n\n- a [x]: y\n": 8,
+            base + "\n## Columns\n\n- a: x\n- a: y\n": 9,
+            base + "\n## Relationships\n\n- a: x\n- a: y\n": 9,
+            base + "\n## Concepts\n\n- a: x\n  - where: [{\"column\": \"a\", \"op\": \"eq\", \"value\": 1}]\n- a: y\n": 10,
+            base + "\n## Measures\n\n- m: x\n  - expr: {\"fn\": \"count\"}\n- m: y\n": 10,
         }
         for text, line in cases.items():
             with self.subTest(text=text):
