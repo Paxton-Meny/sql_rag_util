@@ -9,11 +9,13 @@ from __future__ import annotations
 import argparse
 import sqlite3
 import sys
+from contextlib import closing
+from pathlib import Path
 
-import sql_rag_util
 from sql_rag_util.commands.spec import TIERS
 from sql_rag_util.config import Config
 from sql_rag_util.engine import SqlRag
+from sql_rag_util.exceptions import SqlRagError
 from sql_rag_util.mcp.server import serve_stdio
 from sql_rag_util.search.sqlite_functions import register_sqlite_functions
 
@@ -31,15 +33,36 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _report(text: str) -> None:
+    print(text, file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Parse arguments, build the engine, and serve until stdin closes."""
+    """Parse arguments, build the engine, and serve until stdin closes.
+
+    The database is opened read-only through a percent-encoded ``file:`` URI,
+    so no character in the path can change the open mode or create a file.
+
+    Returns
+    -------
+    int
+        0 after stdin closes, 1 when the engine cannot be built, 2 when the
+        database file does not exist.
+    """
     args = _parser().parse_args(argv)
-    uri = f"file:{args.sqlite}?mode=ro"
-    connection = sqlite3.connect(uri, uri=True, check_same_thread=False)
-    if not args.no_fuzzy:
-        register_sqlite_functions(connection)
-    engine = SqlRag(connection, metadata_root=args.metadata, cache_dir=args.cache, config=Config(allow_metadata_writes=args.allow_writes))
-    serve_stdio(engine, tier=args.tier, version=sql_rag_util.__version__, on_error=lambda text: print(text, file=sys.stderr))
+    path = Path(args.sqlite).expanduser().resolve()
+    if not path.is_file():
+        _report(f"error: no SQLite database file at {path}")
+        return 2
+    with closing(sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True, check_same_thread=False)) as connection:
+        try:
+            if not args.no_fuzzy:
+                register_sqlite_functions(connection)
+            engine = SqlRag(connection, metadata_root=args.metadata, cache_dir=args.cache, config=Config(allow_metadata_writes=args.allow_writes))
+        except (SqlRagError, sqlite3.Error) as exc:
+            _report(f"error: {exc}")
+            return 1
+        serve_stdio(engine, tier=args.tier, on_error=_report)
     return 0
 
 
