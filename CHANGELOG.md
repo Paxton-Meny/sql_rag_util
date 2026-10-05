@@ -18,6 +18,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - `python -m sql_rag_util.mcp --sqlite PATH` opens the file read-only through a percent-encoded URI. Before, a `#` or `?` in the path dropped `mode=ro` and could open, or create, a different writable file. A missing file now exits 2, and a file that cannot be served exits 1, both with a one-line error and no traceback.
 - The MCP server reports the package version by default instead of `0.0.0`, and answers a failure while handling a request with the JSON-RPC internal error code `-32603` instead of `-32600`.
 - Results are always strict JSON. NaN and infinite floats and decimals become `"NaN"`, `"Infinity"`, and `"-Infinity"` instead of invalid JSON, a decimal infinity or signaling NaN no longer raises out of dispatch, and huge integral decimals become text. The MCP server refuses `NaN` and `Infinity` in requests and answers a response that cannot be encoded with `-32603` instead of stopping.
+- A driver failure while opening or closing a cursor is now an `ExecutionError` like any other, a failure to close after a failed statement no longer hides the original error, and cursors that return mappings yield value tuples instead of key tuples.
 
 ## [0.1.0] - 2026-09-13
 
