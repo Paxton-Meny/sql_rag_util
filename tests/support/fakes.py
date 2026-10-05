@@ -14,7 +14,7 @@ from sql_rag_util.sql.statement import Statement, sql
 if TYPE_CHECKING:
     import unittest
 
-__all__ = ["FakeCursor", "FakeConnection", "fake_driver", "StubDialect"]
+__all__ = ["FakeCursor", "FakeConnection", "fake_driver", "register_driver", "StubDialect"]
 
 
 @dataclass
@@ -61,14 +61,19 @@ class FakeConnection:
         self.commits += 1
 
 
-def fake_driver(test: unittest.TestCase, name: str, paramstyle: str | None) -> type[FakeConnection]:
-    """Register a fake driver module called ``name`` until ``test`` ends and return a connection class from it."""
+def register_driver(test: unittest.TestCase, name: str, paramstyle: str | None) -> None:
+    """Register an empty driver module called ``name``, with ``paramstyle`` if given, until ``test`` ends."""
     module = types.ModuleType(name)
     if paramstyle is not None:
         setattr(module, "paramstyle", paramstyle)
     previous = sys.modules.get(name)
     sys.modules[name] = module
     test.addCleanup(_restore_module, name, previous)
+
+
+def fake_driver(test: unittest.TestCase, name: str, paramstyle: str | None) -> type[FakeConnection]:
+    """Register a fake driver module called ``name`` until ``test`` ends and return a connection class from it."""
+    register_driver(test, name, paramstyle)
     return type("Connection", (FakeConnection,), {"__module__": f"{name}.connections"})
 
 
