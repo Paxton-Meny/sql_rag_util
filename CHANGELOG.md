@@ -15,6 +15,8 @@ All notable changes to this project are recorded here. The format follows [Keep 
 - Metadata toolkit edits can no longer write structure into a file. Text fields must be one line without control or direction characters, list entries cannot contain commas, description lines cannot start with `#`, and every save renders, parses back, and refuses to write unless the result is identical. A failed refresh after a write restores the previous file.
 - An edit is refused with the new `MetadataConflictError` when the metadata files changed on disk since they were loaded. The engine reloads them, so a retry applies on top of the developer's change instead of overwriting it.
 - Duplicate column, relationship, concept, and measure names in a table file are format errors, and a failed `SqlRag.refresh()` leaves the engine unchanged.
+- `python -m sql_rag_util.mcp --sqlite PATH` opens the file read-only through a percent-encoded URI. Before, a `#` or `?` in the path dropped `mode=ro` and could open, or create, a different writable file. A missing file now exits 2, and a file that cannot be served exits 1, both with a one-line error and no traceback.
+- The MCP server reports the package version by default instead of `0.0.0`, and answers a failure while handling a request with the JSON-RPC internal error code `-32603` instead of `-32600`.
 
 ## [0.1.0] - 2026-09-13
 
