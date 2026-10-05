@@ -65,7 +65,7 @@ def search_rows(engine: SqlRag, args: SearchRowsArgs) -> CommandResult:
         return search_where(engine.dialect, capabilities, columns, tokens, strategies, match_all=args.match == "all")
 
     spec = QuerySpec(args.table, limit=args.limit)
-    compiled = compile_query(engine.dialect, engine.catalog, engine.annotated.policy, spec, engine.limits, extra_filters=engine.scope_filters(table), extra_predicate=predicate)
+    compiled = compile_query(engine.dialect, engine.catalog, engine.annotated.policy, spec, engine.limits, scope=engine.scope_filters(table), full=engine.annotated.full, extra_predicate=predicate)
     fetched = engine.executor.fetch(compiled.statement, command="search_rows", limit=compiled.limit)
     rows, cut = shape_rows(fetched.rows, engine.limits)
     notes = list(compiled.notes)

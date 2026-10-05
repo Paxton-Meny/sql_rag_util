@@ -82,6 +82,29 @@ class ToolsTest(unittest.TestCase):
         scoped = SqlRag(conn, metadata_root=FIXTURES, config=Config(scope=lambda t: ({"column": "region", "op": "eq", "value": "north"},) if t == "customers" else ()))
         self.assertEqual(scoped.dispatch("query", {"table": "customers", "measures": [{"fn": "count"}]})["rows"], [[2]])
 
+    def test_scope_filters_are_trusted_and_name_nothing(self) -> None:
+        """Scope may use sensitive and hidden columns, also through joins; the agent still cannot, and a broken scope names no column."""
+        scopes = {
+            "customers": ({"column": "email", "op": "eq", "value": "ops@acme.example"},),
+            "orders": ({"column": "customer.password_hash", "op": "eq", "value": "y"},),
+        }
+        scoped = SqlRag(fixture_connection(self), metadata_root=FIXTURES, config=Config(scope=lambda t: scopes.get(t, ())))
+        self.assertEqual(scoped.dispatch("query", {"table": "customers", "columns": ["name"]})["rows"], [["Acme Corp"]])
+        self.assertEqual(scoped.dispatch("query", {"table": "orders", "columns": ["id", "customer.name"]})["rows"], [[12, "Jon Smyth"]])
+        self.assertEqual(scoped.dispatch("search_rows", {"table": "customers", "term": "zeta"})["rows"], [])
+        self.assertEqual(scoped.dispatch("query", {"table": "customers", "filters": [{"column": "email", "op": "eq", "value": "x"}]})["error"]["type"], "SensitiveColumnError")
+        self.assertEqual(scoped.dispatch("query", {"table": "orders", "columns": ["customer.password_hash"]})["error"]["type"], "UnknownColumnError")
+        broken_scopes = (
+            ({"column": "password_hsh", "op": "eq", "value": "x"},),
+            ({"column": "email", "op": "gt", "value": 5},),
+            ({"column": "not a path", "op": "eq", "value": 1},),
+        )
+        for scope in broken_scopes:
+            with self.subTest(scope=scope):
+                broken = SqlRag(fixture_connection(self), metadata_root=FIXTURES, config=Config(scope=lambda t, s=scope: s if t == "customers" else ()))
+                error = broken.dispatch("query", {"table": "customers", "columns": ["name"]})["error"]
+                self.assertEqual(error, {"type": "ConfigurationError", "message": "the developer scope for customers is invalid; check Config.scope", "suggestions": []})
+
 
 if __name__ == "__main__":
     unittest.main()

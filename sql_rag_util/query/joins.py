@@ -53,6 +53,8 @@ class JoinPlan:
         The table the spec reads from.
     max_depth
         Maximum relationship hops in one path.
+    full
+        The catalog with hidden columns kept, for trusted resolution.
     """
 
     catalog: Catalog
@@ -60,6 +62,7 @@ class JoinPlan:
     base: TableInfo
     max_depth: int
     steps: dict[str, JoinStep] = field(default_factory=dict)
+    full: Catalog | None = None
 
     @property
     def base_alias(self) -> str:
@@ -71,8 +74,13 @@ class JoinPlan:
         """Return whether any join can multiply base rows."""
         return any(s.relationship.cardinality == "to_many" for s in self.steps.values())
 
-    def resolve(self, path: str) -> ResolvedColumn:
-        """Resolve ``path`` such as ``customer.region.name``, adding joins as needed."""
+    def resolve(self, path: str, *, trusted: bool = False) -> ResolvedColumn:
+        """Resolve ``path`` such as ``customer.region.name``, adding joins as needed.
+
+        A ``trusted`` path resolves its column against the full catalog and
+        skips the column policy, so it may name a hidden or sensitive column.
+        Only developer scope filters are trusted; nothing an agent supplies is.
+        """
         parts = path.split(".")
         hops, column_name = parts[:-1], parts[-1]
         if len(hops) > self.max_depth:
@@ -90,6 +98,8 @@ class JoinPlan:
                 step = JoinStep(f"t{len(self.steps) + 1}", alias, relationship, target)
                 self.steps[prefix] = step
             alias, table = step.alias, step.table
+        if trusted:
+            return ResolvedColumn(path, alias, table, resolve_column((self.full or self.catalog).require(table.ref), column_name))
         column = resolve_column(table, column_name)
         self.policy.check_usable(table.ref, column.name)
         return ResolvedColumn(path, alias, table, column)

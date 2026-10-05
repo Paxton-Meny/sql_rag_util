@@ -6,7 +6,7 @@ import datetime as dt
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from sql_rag_util.exceptions import LimitExceededError, QuerySpecError
+from sql_rag_util.exceptions import ConfigurationError, LimitExceededError, QuerySpecError, SqlRagError
 from sql_rag_util.query.aggregate import measure_sql
 from sql_rag_util.query.filters import build_predicate
 from sql_rag_util.query.joins import JoinPlan
@@ -104,14 +104,21 @@ def _where(
     dialect: Dialect,
     plan: JoinPlan,
     filters: tuple[Filter, ...],
+    scope: tuple[Filter, ...],
     limits: Limits,
     now: dt.datetime | None,
     extra_predicate: Callable[[JoinPlan], Statement | None] | None,
 ) -> Statement | None:
-    predicates = []
-    for flt in filters:
-        resolved = plan.resolve(flt.column)
-        predicates.append(build_predicate(dialect, plan.column_sql(dialect, resolved), resolved.column, flt, max_in_values=limits.max_in_values, now=now))
+    def predicate(flt: Filter, *, trusted: bool = False) -> Statement:
+        resolved = plan.resolve(flt.column, trusted=trusted)
+        return build_predicate(dialect, plan.column_sql(dialect, resolved), resolved.column, flt, max_in_values=limits.max_in_values, now=now)
+
+    predicates = [predicate(flt) for flt in filters]
+    for flt in scope:
+        try:
+            predicates.append(predicate(flt, trusted=True))
+        except SqlRagError as exc:
+            raise ConfigurationError(f"the developer scope for {plan.base.ref.qualified} is invalid; check Config.scope") from exc
     extra = extra_predicate(plan) if extra_predicate is not None else None
     if extra is not None and not extra.is_empty:
         predicates.append(extra)
@@ -152,6 +159,8 @@ def compile_query(
     limits: Limits,
     *,
     extra_filters: tuple[Filter, ...] = (),
+    scope: tuple[Filter, ...] = (),
+    full: Catalog | None = None,
     now: dt.datetime | None = None,
     extra_predicate: Callable[[JoinPlan], Statement | None] | None = None,
 ) -> Compiled:
@@ -160,7 +169,14 @@ def compile_query(
     Parameters
     ----------
     extra_filters
-        Developer scope and concept predicates, AND-ed with the spec's own.
+        Concept predicates, AND-ed with the spec's own and checked like them.
+    scope
+        Developer scope predicates, AND-ed too. They are trusted: they resolve
+        against ``full`` and may use hidden and sensitive columns. Any problem
+        with them raises one :class:`ConfigurationError` that names no column,
+        since the agent sees the error.
+    full
+        The catalog with hidden columns kept; defaults to ``catalog``.
     now
         Reference time for ``since_days``; defaults to the current UTC time.
     extra_predicate
@@ -172,14 +188,14 @@ def compile_query(
     if spec.concepts:
         raise QuerySpecError("concepts must be expanded before compilation")
     table = resolve_table(catalog, spec.table)
-    plan = JoinPlan(catalog, policy, table, limits.max_join_depth)
+    plan = JoinPlan(catalog, policy, table, limits.max_join_depth, full=full)
     notes: list[str] = []
     group_sql: list[str] = []
     if spec.is_aggregate:
         items, names, group_sql = _select_aggregate(dialect, plan, spec, limits)
     else:
         items, names = _select_rows(dialect, plan, spec, limits, notes)
-    where = _where(dialect, plan, spec.filters + extra_filters, limits, now, extra_predicate)
+    where = _where(dialect, plan, spec.filters + extra_filters, scope, limits, now, extra_predicate)
     order = _order(dialect, plan, spec, group_sql)
     body = plan.from_clause(dialect)
     if where is not None:
