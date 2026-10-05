@@ -107,7 +107,9 @@ class ToolkitTest(unittest.TestCase):
                 result = self.engine.dispatch(tool, arguments, tier="full")
                 self.assertIn(result.get("error", {}).get("type"), ("QuerySpecError", "MetadataFormatError"))
                 self.assertEqual(self._files(), before)
-        SqlRag(build_fixture(), metadata_root=self.root)
+        conn = build_fixture()
+        self.addCleanup(conn.close)
+        SqlRag(conn, metadata_root=self.root)
 
     def test_flags_survive_a_two_step_injection(self) -> None:
         """Text cannot plant a second, unflagged entry that a later edit would keep instead of the flagged one."""
