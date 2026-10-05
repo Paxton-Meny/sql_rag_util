@@ -34,7 +34,7 @@ class CostTest(unittest.TestCase):
         self.addCleanup(conn.close)
         self.engine = SqlRag(conn, metadata_root=root)
 
-    def _size(self, name: str, arguments: dict, fmt: str) -> int:  # type: ignore[type-arg]
+    def _size(self, name: str, arguments: dict[str, object], fmt: str) -> int:
         if fmt == "compact":
             return len(self.engine.dispatch_text(name, arguments).encode())
         return len(json.dumps(self.engine.dispatch(name, arguments), separators=(",", ":")).encode())

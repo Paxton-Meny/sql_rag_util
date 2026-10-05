@@ -18,6 +18,7 @@ from sql_rag_util.metadata.model import (
     TableMeta,
 )
 from sql_rag_util.query.spec import Filter, Measure
+from sql_rag_util.schema.model import CARDINALITIES
 
 __all__ = ["parse_table", "parse_project", "parse_relationships", "parse_glossary"]
 
@@ -193,9 +194,10 @@ def parse_relationships(text: str, path: str) -> tuple[DeclaredRelationship, ...
         to_table, to_columns = _table_columns(doc, *keys["to"])
         if len(from_columns) != len(to_columns):
             raise doc.fail("from and to must list the same number of columns", keys["to"][1])
-        if keys["cardinality"][0] not in ("to_one", "to_many"):
+        cardinality = next((c for c in CARDINALITIES if c == keys["cardinality"][0]), None)
+        if cardinality is None:
             raise doc.fail("cardinality must be to_one or to_many", keys["cardinality"][1])
-        out.append(DeclaredRelationship(name, from_table, from_columns, to_table, to_columns, keys["cardinality"][0], keys["text"][0]))  # type: ignore[arg-type]
+        out.append(DeclaredRelationship(name, from_table, from_columns, to_table, to_columns, cardinality, keys["text"][0]))
     return tuple(out)
 
 

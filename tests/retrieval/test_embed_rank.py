@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from collections.abc import Sequence
 
 from sql_rag_util.exceptions import ConfigurationError
 from sql_rag_util.retrieval.cache import JsonCache
@@ -11,7 +12,7 @@ from sql_rag_util.retrieval.embed import EmbeddingIndex, build_embedding_index
 from sql_rag_util.retrieval.rank import reciprocal_rank_fusion
 
 
-def _embed(texts):  # type: ignore[no-untyped-def]
+def _embed(texts: Sequence[str]) -> list[list[float]]:
     table = {"orders": [1.0, 0.0], "customers": [0.0, 1.0], "shipments": [0.7, 0.7]}
     return [table.get(t, [0.0, 0.0]) for t in texts]
 
@@ -21,9 +22,9 @@ class EmbeddingTest(unittest.TestCase):
 
     def test_build_and_search(self) -> None:
         """The closest document ranks first and the cache avoids a second embed call."""
-        calls = []
+        calls: list[list[str]] = []
 
-        def counting(texts):  # type: ignore[no-untyped-def]
+        def counting(texts: Sequence[str]) -> list[list[float]]:
             calls.append(list(texts))
             return _embed(texts)
 

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from sql_rag_util.executor import Executor
     from sql_rag_util.metadata.annotate import AnnotatedCatalog
     from sql_rag_util.retrieval.cache import JsonCache
+    from sql_rag_util.sql.statement import Statement
 
 __all__ = ["ColumnValues", "ValueHit", "ValueIndex", "build_value_index"]
 
@@ -113,7 +114,7 @@ class ValueIndex:
         return cls(tuple(entries))
 
 
-def _column_statement(dialect: Dialect, table_sql: str, column_sql: str, cap: int):  # type: ignore[no-untyped-def]
+def _column_statement(dialect: Dialect, table_sql: str, column_sql: str, cap: int) -> Statement:
     body = sql(f"FROM {table_sql} WHERE {column_sql} IS NOT NULL GROUP BY {column_sql} ORDER BY COUNT(*) DESC, {column_sql}")
     return dialect.limited_select(sql(column_sql), body, cap)
 

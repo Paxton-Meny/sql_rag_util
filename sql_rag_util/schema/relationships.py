@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from sql_rag_util.schema.model import Relationship
 
 if TYPE_CHECKING:
-    from sql_rag_util.schema.model import ForeignKeyInfo, TableRef
+    from sql_rag_util.schema.model import Cardinality, ForeignKeyInfo, TableRef
 
 __all__ = ["derive_relationships"]
 
@@ -23,9 +23,9 @@ def _via(columns: tuple[str, ...]) -> str:
     return "_".join(columns)
 
 
-def _candidates(fk: ForeignKeyInfo) -> tuple[tuple[TableRef, str, str, str], ...]:
-    forward = (fk.table, fk.referenced.name, f"{fk.referenced.name}_via_{_via(fk.columns)}", "to_one")
-    reverse = (fk.referenced, fk.table.name, f"{fk.table.name}_via_{_via(fk.columns)}", "to_many")
+def _candidates(fk: ForeignKeyInfo) -> tuple[tuple[TableRef, str, str, Cardinality], ...]:
+    forward: tuple[TableRef, str, str, Cardinality] = (fk.table, fk.referenced.name, f"{fk.referenced.name}_via_{_via(fk.columns)}", "to_one")
+    reverse: tuple[TableRef, str, str, Cardinality] = (fk.referenced, fk.table.name, f"{fk.table.name}_via_{_via(fk.columns)}", "to_many")
     return forward, reverse
 
 
@@ -54,5 +54,5 @@ def derive_relationships(foreign_keys: tuple[ForeignKeyInfo, ...]) -> tuple[Rela
                 target, pairs = fk.referenced, tuple(zip(fk.columns, fk.referenced_columns, strict=True))
             else:
                 target, pairs = fk.table, tuple(zip(fk.referenced_columns, fk.columns, strict=True))
-            out.append(Relationship(name, source, target, pairs, cardinality, "foreign_key"))  # type: ignore[arg-type]
+            out.append(Relationship(name, source, target, pairs, cardinality, "foreign_key"))
     return tuple(out)

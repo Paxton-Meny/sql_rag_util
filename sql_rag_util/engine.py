@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
     from sql_rag_util.commands.spec import CommandResult, ToolSpec
     from sql_rag_util.config import Limits
+    from sql_rag_util.dbapi import Connection
     from sql_rag_util.dialects.base import Dialect
     from sql_rag_util.metadata.annotate import AnnotatedCatalog
     from sql_rag_util.schema.model import Catalog, TableInfo
@@ -59,7 +60,7 @@ class SqlRag:
 
     def __init__(
         self,
-        connection: object,
+        connection: Connection,
         *,
         dialect: str | None = None,
         paramstyle: str | None = None,

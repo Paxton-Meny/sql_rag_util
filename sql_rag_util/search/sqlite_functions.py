@@ -9,8 +9,13 @@ capabilities.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sql_rag_util.search.levenshtein import levenshtein
 from sql_rag_util.search.soundex import soundex
+
+if TYPE_CHECKING:
+    import sqlite3
 
 __all__ = ["register_sqlite_functions", "SOUNDEX_FUNCTION", "LEVENSHTEIN_FUNCTION"]
 
@@ -38,8 +43,7 @@ def levenshtein_min(value: str | None, token: str | None) -> int:
     return min(distances) if distances else _UNMATCHED_DISTANCE
 
 
-def register_sqlite_functions(connection: object) -> None:
+def register_sqlite_functions(connection: sqlite3.Connection) -> None:
     """Register the word-aware Soundex and Levenshtein functions on ``connection``."""
-    create = connection.create_function  # type: ignore[attr-defined]
-    create(SOUNDEX_FUNCTION, 2, soundex_any, deterministic=True)
-    create(LEVENSHTEIN_FUNCTION, 2, levenshtein_min, deterministic=True)
+    connection.create_function(SOUNDEX_FUNCTION, 2, soundex_any, deterministic=True)
+    connection.create_function(LEVENSHTEIN_FUNCTION, 2, levenshtein_min, deterministic=True)

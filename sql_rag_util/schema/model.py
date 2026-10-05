@@ -18,6 +18,8 @@ __all__ = [
     "ForeignKeyInfo",
     "Relationship",
     "Catalog",
+    "Cardinality",
+    "CARDINALITIES",
     "NUMERIC_KINDS",
     "TEXT_KINDS",
 ]
@@ -44,6 +46,9 @@ NUMERIC_KINDS: frozenset[ColumnKind] = frozenset(
     {ColumnKind.INTEGER, ColumnKind.FLOAT, ColumnKind.DECIMAL}
 )
 TEXT_KINDS: frozenset[ColumnKind] = frozenset({ColumnKind.TEXT, ColumnKind.UUID})
+
+Cardinality = Literal["to_one", "to_many"]
+CARDINALITIES: tuple[Cardinality, ...] = ("to_one", "to_many")
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,7 +177,7 @@ class Relationship:
     source: TableRef
     target: TableRef
     pairs: tuple[tuple[str, str], ...]
-    cardinality: Literal["to_one", "to_many"]
+    cardinality: Cardinality
     origin: Literal["foreign_key", "declared"]
     description: str = ""
 
@@ -207,6 +212,19 @@ class Catalog:
     def table(self, ref: TableRef) -> TableInfo | None:
         """Return the table with identity ``ref``, or ``None``."""
         return next((t for t in self.tables if t.ref == ref), None)
+
+    def require(self, ref: TableRef) -> TableInfo:
+        """Return the table with identity ``ref``.
+
+        Raises
+        ------
+        LookupError
+            When the catalog has no such table, which callers treat as a bug.
+        """
+        table = self.table(ref)
+        if table is None:
+            raise LookupError(f"{ref.qualified} is not in the catalog")
+        return table
 
     def relationships_of(self, ref: TableRef) -> tuple[Relationship, ...]:
         """Return relationships navigated from ``ref``, in catalog order."""
