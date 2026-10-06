@@ -82,9 +82,9 @@ The package is one layer of defence, not the whole of it. Connect as a database 
 
 ## Development
 
-Run the gate from the repository root:
+Development uses [uv](https://docs.astral.sh/uv/) and a virtual environment: create it once with `uv venv --python 3.11` (any Python 3.11 or newer), then run the gate from the repository root:
 
-    python3 -m compileall -q sql_rag_util tests buildsys benchmarks && python3 -m unittest discover -s tests -t . -q
+    uv run --no-project python -m compileall -q sql_rag_util tests buildsys benchmarks && uv run --no-project python -m unittest discover -s tests -t . -q
 
 See CONTRIBUTING.md for conventions and SECURITY.md for reporting.
 

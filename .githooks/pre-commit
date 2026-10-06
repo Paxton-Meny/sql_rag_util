@@ -1,5 +1,13 @@
 #!/bin/sh
 set -eu
 cd "$(git rev-parse --show-toplevel)"
-python3 -m compileall -q sql_rag_util tests buildsys benchmarks
-python3 -m unittest discover -s tests -t . -q
+if ! command -v uv >/dev/null 2>&1; then
+    echo "pre-commit: uv is required to run the gate; see CONTRIBUTING.md" >&2
+    exit 1
+fi
+if [ ! -x .venv/bin/python ]; then
+    echo "pre-commit: no virtual environment; create one with: uv venv --python 3.11" >&2
+    exit 1
+fi
+uv run --no-project python -m compileall -q sql_rag_util tests buildsys benchmarks
+uv run --no-project python -m unittest discover -s tests -t . -q

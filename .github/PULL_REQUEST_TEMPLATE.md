@@ -8,7 +8,7 @@ Closes #
 
 ## Gate
 
-- [ ] `python3 -m compileall -q sql_rag_util tests buildsys benchmarks && python3 -m unittest discover -s tests -t . -q` passes
+- [ ] `uv run --no-project python -m compileall -q sql_rag_util tests buildsys benchmarks && uv run --no-project python -m unittest discover -s tests -t . -q` passes
 - [ ] No new imports outside the standard library
 - [ ] Every emitted SQL statement uses validated identifiers and bound parameters
 - [ ] CHANGELOG.md updated
