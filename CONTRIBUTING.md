@@ -1,27 +1,28 @@
 # Contributing
 
-## Ground rules
+Issues are welcome: bug reports, questions, and proposals. Pull requests from outside the project are not accepted and are closed without review. The code is offered under a noncommercial license with commercial use by permission, and taking in code written by others would tie that permission to their consent. If you have a fix in mind, describe it in an issue; the change will be made in the repository with credit to you in the changelog.
 
-- No dependencies. The package, its tests, and its build use the Python standard library only. Development runs in a virtual environment managed by [uv](https://docs.astral.sh/uv/), never the system Python, and nothing is installed into it. A change that adds an import outside the standard library will not be merged without a written justification and prior agreement in an issue.
-- No arbitrary SQL. Every statement the package emits comes from a fixed template in the dialect layer with validated identifiers and bound parameters. Pull requests that format SQL from strings are declined.
-- Python 3.11 or newer. Annotate every signature. Write numpydoc docstrings. No inline comments; explanation goes in docstrings and `docs/`.
+## Issues
 
-## Workflow
+- **Bugs.** Use the bug report form. Include the `sql_rag_util` version, Python version, dialect, and driver with its version, the tool or SDK call with its arguments, and what you expected. A failing `unittest` case is ideal. Leave out real data and credentials.
+- **Proposals.** Use the feature request form. Describe the agent-facing command or metadata field, its arguments, and its response shape. The package depends on nothing and will stay that way.
+- **Security.** Never in a public issue. Report privately as described in [SECURITY.md](SECURITY.md).
 
-1. Once per clone, create the environment and activate the gate: `uv venv --python 3.11` (any Python 3.11 or newer), then `git config core.hooksPath .githooks`. The hook refuses to run without uv and `.venv`.
-2. Branch from `main`: `feat/`, `fix/`, `docs/`, `perf/`, `refactor/`, or `research/` plus a kebab-case slug.
-3. Commit atomically. Subject in the imperative, capitalized, 72 characters or fewer, no trailing period, no type prefix. Body explains why when the subject cannot.
-4. Run the gate before pushing:
+## How the project is built
 
-       uv run --no-project python -m compileall -q sql_rag_util tests buildsys benchmarks && uv run --no-project python -m unittest discover -s tests -t . -q
+For anyone reading or forking the code, these are the rules every change follows.
 
-5. Rebase onto `main`, open a pull request, fill the template in full, and update `CHANGELOG.md` in the same branch.
-6. Merges are rebase-merge, or squash when the commits are not individually meaningful. History stays linear.
+- The package, its tests, and its build use the Python standard library only. Development runs in a virtual environment managed by [uv](https://docs.astral.sh/uv/), never the system Python, and nothing is installed into it.
+- No arbitrary SQL. Every statement the package emits comes from a fixed template in the dialect layer, with identifiers validated against the catalog and values bound as parameters.
+- Python 3.11 or newer. Every signature is annotated, public surfaces carry numpydoc docstrings, and there are no inline comments; explanation goes in docstrings and `docs/`. `tests/test_conventions.py` enforces these.
+- One logical change per commit and per pull request, with the changelog updated in the same branch. History stays linear.
+
+Set up a clone with `uv venv --python 3.11` (any Python 3.11 or newer) and `git config core.hooksPath .githooks`, then run the gate from the repository root:
+
+    uv run --no-project python -m compileall -q sql_rag_util tests buildsys benchmarks && uv run --no-project python -m unittest discover -s tests -t . -q
+
+The pre-commit hook runs the same gate and refuses to run without uv and `.venv`.
 
 ## Tests
 
-`unittest`, under `tests/`, mirroring the package. SQLite runs in-process; every other dialect is tested by asserting the exact statement text and parameters the package emits. Nothing in the suite needs a database server.
-
-## What is accepted
-
-Bug fixes, dialect support that follows the existing dialect layer, metadata format proposals opened as an issue first, and documentation. Feature work starts with an issue describing the agent-facing command, its arguments, and its response shape.
+`unittest`, under `tests/`, mirroring the package. SQLite runs in-process. PostgreSQL, MySQL, and SQL Server run end to end through scripted drivers that answer introspection and check every statement and bound value. Nothing in the suite needs a database server, and CI runs it on Python 3.11 to 3.14 without any external action.
