@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import pathlib
 import shutil
 import sys
 import tempfile
 import unittest
+from collections.abc import Callable
 from types import ModuleType
+from typing import Any
 
-__all__ = ["ROOT", "backend", "project_copy"]
+__all__ = ["ROOT", "backend", "inside", "project_copy"]
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 _MODULE = "sql_rag_util_build"
@@ -38,3 +41,13 @@ def project_copy(test: unittest.TestCase, *, pyproject: str | None = None) -> pa
     if pyproject is not None:
         (root / "pyproject.toml").write_text(pyproject, encoding="utf-8")
     return root
+
+
+def inside(directory: pathlib.Path, hook: Callable[..., Any], *arguments: Any) -> Any:
+    """Call ``hook`` with ``directory`` as the working directory, as a build frontend does."""
+    previous = os.getcwd()
+    os.chdir(directory)
+    try:
+        return hook(*arguments)
+    finally:
+        os.chdir(previous)

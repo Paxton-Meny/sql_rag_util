@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import email.parser
 import email.policy
+import pathlib
+import tempfile
 import unittest
 
 import sql_rag_util
-from tests.distribution.support import ROOT, backend, project_copy
+from tests.distribution.support import ROOT, backend, inside, project_copy
 
 PYPROJECT = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
@@ -53,7 +55,7 @@ class LoadProjectTest(unittest.TestCase):
 
 
 class MetadataTest(unittest.TestCase):
-    """METADATA parses as an email message carrying every field."""
+    """METADATA parses as an email message carrying every field, and the hooks behave as PEP 517 asks."""
 
     def test_metadata_fields(self) -> None:
         """Every declared value appears once in its field, and the README is the body."""
@@ -68,6 +70,28 @@ class MetadataTest(unittest.TestCase):
         self.assertEqual(message["Keywords"], ",".join(project.keywords))
         self.assertEqual(message["Description-Content-Type"], "text/markdown")
         self.assertEqual(message.get_payload(), project.readme)
+
+
+    def test_hooks(self) -> None:
+        """No hook asks for build requirements, settings are refused, and prepare_metadata writes the dist-info."""
+        module = backend()
+        for hook in (module.get_requires_for_build_wheel, module.get_requires_for_build_sdist, module.get_requires_for_build_editable):
+            with self.subTest(hook=hook.__name__):
+                self.assertEqual(hook(None), [])
+                self.assertEqual(hook({}), [])
+                with self.assertRaises(module.BuildError):
+                    hook({"key": "value"})
+        with tempfile.TemporaryDirectory() as tmp:
+            for hook in (module.prepare_metadata_for_build_wheel, module.prepare_metadata_for_build_editable):
+                with self.subTest(hook=hook.__name__):
+                    out = pathlib.Path(tmp) / hook.__name__
+                    out.mkdir()
+                    name = inside(ROOT, hook, str(out))
+                    files = sorted(p.relative_to(out / name).as_posix() for p in (out / name).rglob("*") if p.is_file())
+                    self.assertEqual(files, ["METADATA", "WHEEL", "licenses/LICENSE"])
+                    self.assertEqual((out / name / "licenses" / "LICENSE").read_bytes(), (ROOT / "LICENSE").read_bytes())
+                    self.assertIn("Tag: py3-none-any", (out / name / "WHEEL").read_text(encoding="utf-8"))
+
 
 
 if __name__ == "__main__":
