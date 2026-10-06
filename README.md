@@ -65,7 +65,7 @@ No arbitrary SQL, ever. Names are resolved against the catalog before they are q
 
 - `sql_rag_util/`: the package. `engine.py` is the facade; `commands/` the tools; `query/` the spec and compiler; `dialects/` the four databases; `schema/` introspection; `metadata/` the format; `retrieval/` and `search/` schema and row retrieval; `adapters/` and `mcp/` integrations.
 - `tests/`: `unittest` suite mirroring the package; `tests/support/fixture.py` is the shared SQLite database.
-- `docs/`: architecture, threat model, metadata format, tool reference, context cost, and design notes.
+- `docs/`: architecture, threat model, metadata format, tool reference, SDK surface, context cost, and design notes.
 - `benchmarks/`: the context-cost script.
 - `.githooks/`: the pre-commit gate. Activate once per clone with `git config core.hooksPath .githooks`.
 
