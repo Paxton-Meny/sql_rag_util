@@ -79,14 +79,17 @@ class WheelTest(unittest.TestCase):
             self._build(directory="d")
 
     def test_prepared_metadata_must_match(self) -> None:
-        """A build given prepared metadata accepts its own and refuses anything else."""
-        prepared = self.out / "prepared"
-        prepared.mkdir()
-        inside(ROOT, backend().prepare_metadata_for_build_wheel, str(prepared))
-        self._build(directory="a", metadata=str(prepared))
-        (prepared / DIST_INFO / "METADATA").write_text("Metadata-Version: 2.4\nName: other\n", encoding="utf-8")
+        """Given the .dist-info directory prepare_metadata returned, as PEP 517 frontends pass it, a build accepts its own metadata and refuses any other."""
+        parent = self.out / "prepared"
+        parent.mkdir()
+        dist_info = parent / inside(ROOT, backend().prepare_metadata_for_build_wheel, str(parent))
+        self.assertEqual(dist_info.name, DIST_INFO)
+        self._build(directory="a", metadata=str(dist_info))
         with self.assertRaises(backend().BuildError):
-            self._build(directory="b", metadata=str(prepared))
+            self._build(directory="b", metadata=str(parent))
+        (dist_info / "METADATA").write_text("Metadata-Version: 2.4\nName: other\n", encoding="utf-8")
+        with self.assertRaises(backend().BuildError):
+            self._build(directory="c", metadata=str(dist_info))
 
     def test_stray_files_and_symlinks_fail_the_build(self) -> None:
         """Only .py files and py.typed ship; anything else in the package stops the build."""

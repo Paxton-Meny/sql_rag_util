@@ -353,8 +353,9 @@ def build_wheel(wheel_directory: str, config_settings: dict[str, Any] | None = N
     Raises
     ------
     BuildError
-        When ``metadata_directory`` holds metadata other than what this build
-        writes, since PEP 517 requires the two to match.
+        When ``metadata_directory``, the ``.dist-info`` directory an earlier
+        ``prepare_metadata_for_build_wheel`` call created, holds metadata
+        other than what this build writes, since PEP 517 requires a match.
     """
     _check_settings(config_settings)
     root = Path.cwd()
@@ -364,7 +365,7 @@ def build_wheel(wheel_directory: str, config_settings: dict[str, Any] | None = N
 
 def _prepared(project: Project, metadata_directory: str | None) -> Project:
     if metadata_directory is not None:
-        prepared = Path(metadata_directory) / project.dist_info / "METADATA"
+        prepared = Path(metadata_directory) / "METADATA"
         if not prepared.is_file() or prepared.read_text(encoding="utf-8") != metadata_text(project):
             raise BuildError(f"{prepared} does not match the metadata this build writes")
     return project
