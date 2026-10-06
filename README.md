@@ -82,12 +82,16 @@ The package is one layer of defence, not the whole of it. Connect as a database 
 
 ## Development
 
-Development uses [uv](https://docs.astral.sh/uv/) and a virtual environment: create it once with `uv venv --python 3.11` (any Python 3.11 or newer), then run the gate from the repository root:
+Development uses [uv](https://docs.astral.sh/uv/) and a virtual environment: create it once with `uv venv --python 3.11` (any Python 3.11 or newer), activate the hooks with `git config core.hooksPath .githooks`, then run the gate from the repository root:
 
     uv run --no-project python -m compileall -q sql_rag_util tests buildsys benchmarks && uv run --no-project python -m unittest discover -s tests -t . -q
 
-See CONTRIBUTING.md for conventions and SECURITY.md for reporting.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the conventions every change follows.
+
+## Contributing
+
+Issues are welcome; pull requests from outside the project are not accepted. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security problems privately as [SECURITY.md](SECURITY.md) describes.
 
 ## License
 
-PolyForm Noncommercial 1.0.0. Noncommercial use, modification, and redistribution are permitted with the notice retained. Commercial use needs written permission from the author. See LICENSE.
+[PolyForm Noncommercial 1.0.0](LICENSE). This is a source-available license, not an OSI-approved open-source one. Noncommercial use, modification, and redistribution are permitted with the license and its required notice kept. Commercial use needs written permission from the author; to ask, open an issue titled "Commercial license".
