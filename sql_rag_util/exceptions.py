@@ -141,7 +141,7 @@ class MetadataConflictError(MetadataError):
 
 
 class ToolSpecError(SqlRagError):
-    """A command's argument type cannot be turned into a tool definition."""
+    """A tool definition is invalid: its arguments cannot become a schema, or its name is taken."""
 
 
 class UnknownToolError(SqlRagError):

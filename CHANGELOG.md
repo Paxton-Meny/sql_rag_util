@@ -6,6 +6,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 
 ### Added
 
+- `SqlRag(..., tools=(...))` serves the developer's own `ToolSpec` tools beside the built-in ones through `dispatch`, the Anthropic, OpenAI, and MCP adapters, and the MCP server, under the same tier and write rules. A taken name raises `ToolSpecError` before the database is read.
 - `sql_rag_util.dbapi` with `Connection` and `Cursor` protocols naming the part of PEP 249 the package uses, and `Catalog.require` for lookups that must succeed.
 
 ### Changed

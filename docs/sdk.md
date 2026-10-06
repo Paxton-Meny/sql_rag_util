@@ -5,7 +5,7 @@
 ## Building an engine
 
 ```python
-SqlRag(connection, *, dialect=None, paramstyle=None, metadata_root=None, cache_dir=None, schemas=None, config=Config())
+SqlRag(connection, *, dialect=None, paramstyle=None, metadata_root=None, cache_dir=None, schemas=None, config=Config(), tools=())
 ```
 
 The connection is any PEP 249 connection. The engine introspects it once, applies the metadata, and never opens, closes, or commits it. `refresh()` re-reads the catalog and the metadata, for example after a migration; a failed refresh leaves the engine as it was.
@@ -44,14 +44,12 @@ Show agents only `catalog`. `annotated.full` exists so trusted developer code, s
 | `store` | The `MetadataStore` over `metadata_root`, or `None` |
 | `validate_metadata(metadata)` | Raises unless a `Metadata` value would annotate the live catalog cleanly |
 
-A custom tool is a frozen dataclass of arguments, a handler taking the engine and those arguments, and a `ToolSpec`. Reusing the built-in `query` handler keeps the tool on the same compiler, policy, scope, and limits:
+A custom tool is a frozen dataclass of arguments, a handler taking the engine and those arguments, and a `ToolSpec`. Pass it to the engine with `tools=`, and it is served beside the built-in tools by `dispatch`, `tool_specs`, the adapters, and the MCP server, under the same tier and write rules. Reusing the built-in `query` handler keeps the tool on the same compiler, policy, scope, and limits:
 
 ```python
 from dataclasses import dataclass, field
 
-from sql_rag_util import Filter, QuerySpec
-from sql_rag_util.commands import default_registry
-from sql_rag_util.commands.dispatch import Dispatcher
+from sql_rag_util import Filter, QuerySpec, SqlRag
 from sql_rag_util.commands.query import query
 from sql_rag_util.commands.spec import CommandResult, ToolSpec
 
@@ -61,16 +59,14 @@ class OpenOrdersArgs:
     customer: str = field(metadata={"description": "Customer name, exactly as stored."})
 
 
-def open_orders(engine, args):
+def open_orders(engine: SqlRag, args: OpenOrdersArgs) -> CommandResult:
     spec = QuerySpec("orders", columns=["id", "amount"], filters=[Filter("status", "eq", "open"), Filter("customer.name", "eq", args.customer)])
     return query(engine, spec)
 
 
 OPEN_ORDERS = ToolSpec("open_orders", "Open orders", "List one customer's open orders.", OpenOrdersArgs, open_orders, examples=({"customer": "Acme Corp"},))
-registry = default_registry()
-registry.register(OPEN_ORDERS)
-dispatcher = Dispatcher(registry, engine, tier="standard")
-print(dispatcher.call("open_orders", {"customer": "Acme Corp"})["rows"])
+engine = SqlRag(connection, metadata_root="sqlrag_metadata", tools=(OPEN_ORDERS,))
+print(engine.dispatch("open_orders", {"customer": "Acme Corp"})["rows"])
 ```
 
-A custom tool runs through its own `Dispatcher` like this. `engine.dispatch`, the adapters, and the MCP server list the built-in tools only.
+A tool name already taken, by a built-in or another custom tool, raises `ToolSpecError` before the database is read. Set `mutating=True` on a tool that writes anything, so it is offered only when `Config(allow_metadata_writes=True)`, and `tier` to the smallest tier that should include it.

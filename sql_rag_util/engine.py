@@ -56,6 +56,11 @@ class SqlRag:
         Namespaces to load; ``None`` loads the dialect default.
     config
         Behavior switches and limits.
+    tools
+        The developer's own tools, served beside the built-in ones by
+        ``dispatch``, the adapters, and the MCP server, under the same tier and
+        write rules. A name already taken raises :class:`ToolSpecError`
+        before the database is read.
     """
 
     def __init__(
@@ -68,7 +73,11 @@ class SqlRag:
         cache_dir: str | os.PathLike[str] | None = None,
         schemas: tuple[str, ...] | None = None,
         config: Config = Config(),
+        tools: tuple[ToolSpec, ...] = (),
     ) -> None:
+        self._registry = default_registry()
+        for spec in tools:
+            self._registry.register(spec)
         detected = detect(connection, dialect=dialect)
         self._dialect: Dialect = load(detected.dialect)
         style = paramstyle or detected.paramstyle or self._dialect.default_paramstyle
@@ -81,7 +90,6 @@ class SqlRag:
         if cache_dir is None and self._store is not None:
             cache_dir = self._store.path(".cache")
         self._cache = JsonCache(cache_dir) if cache_dir is not None else None
-        self._registry = default_registry()
         self._annotated: AnnotatedCatalog
         self._retriever: Retriever | None = None
         self.refresh()
