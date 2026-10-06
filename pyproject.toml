@@ -4,9 +4,26 @@ version = "0.1.0"
 description = "Dependency-free, safety-first SQL retrieval for AI agents and tools"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
+license = "PolyForm-Noncommercial-1.0.0"
+license-files = ["LICENSE"]
 authors = [{ name = "Paxton-Meny" }]
+keywords = ["sql", "rag", "retrieval", "llm", "agents", "mcp", "sqlite", "postgresql", "mysql", "sql-server"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Database",
+    "Typing :: Typed",
+]
 dependencies = []
 
 [project.urls]
 Repository = "https://github.com/Paxton-Meny/sql_rag_util"
+Documentation = "https://github.com/Paxton-Meny/sql_rag_util/tree/main/docs"
+Changelog = "https://github.com/Paxton-Meny/sql_rag_util/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Paxton-Meny/sql_rag_util/issues"
