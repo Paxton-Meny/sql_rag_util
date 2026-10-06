@@ -8,7 +8,13 @@ A dependency-free Python module that lets AI agents, tools, and workflows retrie
 
 ## Install
 
-Copy or submodule the `sql_rag_util/` directory into your project, or add the repository root to your path. It needs Python 3.11 or newer and nothing else; database access goes through the PEP 249 connection you already have.
+It needs Python 3.11 or newer and nothing else; database access goes through the PEP 249 connection you already have. Install a release straight from the repository:
+
+```bash
+pip install "sql_rag_util @ git+https://github.com/Paxton-Meny/sql_rag_util@v0.2.0"
+```
+
+The build backend is part of the repository and uses the standard library only, so pip downloads nothing but the source. To build a wheel and an sdist yourself, run `python3 buildsys/sql_rag_util_build.py`, which writes both to `dist/`; `pip install --no-index dist/*.whl` then installs offline. Copying or submoduling the `sql_rag_util/` directory into a project still works too.
 
 ## Usage as an SDK
 
@@ -70,6 +76,7 @@ The package is one layer of defence, not the whole of it. Connect as a database 
 - `sql_rag_util/`: the package. `engine.py` is the facade; `commands/` the tools; `query/` the spec and compiler; `dialects/` the four databases; `schema/` introspection; `metadata/` the format; `retrieval/` and `search/` schema and row retrieval; `adapters/` and `mcp/` integrations.
 - `tests/`: `unittest` suite mirroring the package; `tests/support/fixture.py` is the shared SQLite database.
 - `docs/`: architecture, threat model, metadata format, tool reference, SDK surface, context cost, and design notes.
+- `buildsys/`: the standard-library build backend pip uses; see [docs/design/in-tree-build-backend.md](docs/design/in-tree-build-backend.md).
 - `benchmarks/`: the context-cost script.
 - `.githooks/`: the pre-commit gate. Activate once per clone with `git config core.hooksPath .githooks`.
 
@@ -77,7 +84,7 @@ The package is one layer of defence, not the whole of it. Connect as a database 
 
 Run the gate from the repository root:
 
-    python3 -m compileall -q sql_rag_util tests && python3 -m unittest discover -s tests -t . -q
+    python3 -m compileall -q sql_rag_util tests buildsys benchmarks && python3 -m unittest discover -s tests -t . -q
 
 See CONTRIBUTING.md for conventions and SECURITY.md for reporting.
 

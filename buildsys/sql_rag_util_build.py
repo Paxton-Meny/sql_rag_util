@@ -9,14 +9,18 @@ See ``docs/design/in-tree-build-backend.md``.
 
 from __future__ import annotations
 
+import argparse
 import ast
 import base64
 import csv
+import gzip
 import hashlib
 import io
 import os
 import re
 import stat
+import sys
+import tarfile
 import time
 import tomllib
 import unicodedata
@@ -40,12 +44,18 @@ __all__ = [
     "prepare_metadata_for_build_editable",
     "write_wheel",
     "build_wheel",
+    "build_sdist",
+    "build_editable",
+    "main",
 ]
 
 PACKAGE = "sql_rag_util"
 METADATA_VERSION = "2.4"
 TAG = "py3-none-any"
 PACKAGE_SUFFIXES = frozenset({".py", ".typed"})
+SDIST_FILES = ("pyproject.toml", "README.md", "LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md")
+SDIST_DIRS = ("buildsys", PACKAGE, "docs", "tests", "benchmarks")
+SDIST_SUFFIXES = frozenset({".py", ".md", ".typed"})
 ZIP_EPOCH = 315532800
 FILE_MODE = 0o644
 SUPPORTED_KEYS = frozenset(
@@ -284,15 +294,15 @@ def source_date_epoch() -> int:
     return max(int(raw), ZIP_EPOCH)
 
 
-def _package_files(root: Path) -> list[tuple[str, bytes]]:
+def _files(root: Path, top: str, suffixes: frozenset[str]) -> list[tuple[str, bytes]]:
     files = []
-    for directory, subdirectories, names in os.walk(root / PACKAGE):
+    for directory, subdirectories, names in os.walk(root / top):
         subdirectories[:] = sorted(d for d in subdirectories if d != "__pycache__" and not d.startswith("."))
         for name in sorted(names):
             path = Path(directory) / name
             relative = path.relative_to(root).as_posix()
-            if path.is_symlink() or path.suffix not in PACKAGE_SUFFIXES:
-                raise BuildError(f"{relative} is not a regular .py file or py.typed; remove it or teach the backend about it")
+            if path.is_symlink() or path.suffix not in suffixes:
+                raise BuildError(f"{relative} is not a regular {', '.join(sorted(suffixes))} file; remove it or teach the backend about it")
             files.append((relative, path.read_bytes()))
     return files
 
@@ -348,9 +358,127 @@ def build_wheel(wheel_directory: str, config_settings: dict[str, Any] | None = N
     """
     _check_settings(config_settings)
     root = Path.cwd()
-    project = load_project(root)
+    project = _prepared(load_project(root), metadata_directory)
+    return write_wheel(project, root, Path(wheel_directory), _files(root, PACKAGE, PACKAGE_SUFFIXES))
+
+
+def _prepared(project: Project, metadata_directory: str | None) -> Project:
     if metadata_directory is not None:
         prepared = Path(metadata_directory) / project.dist_info / "METADATA"
         if not prepared.is_file() or prepared.read_text(encoding="utf-8") != metadata_text(project):
             raise BuildError(f"{prepared} does not match the metadata this build writes")
-    return write_wheel(project, root, Path(wheel_directory), _package_files(root))
+    return project
+
+
+_FINDER = """\"\"\"Import {package} from its source tree for an editable install, and expose nothing else there.\"\"\"
+
+from __future__ import annotations
+
+import importlib.machinery
+import importlib.util
+import os
+import sys
+
+__all__ = ["install"]
+
+_PACKAGE = {package!r}
+_LOCATION = {location!r}
+
+
+class _Finder:
+    \"\"\"Find the editable package; every other import is left to the normal finders.\"\"\"
+
+    @classmethod
+    def find_spec(cls, fullname: str, path: object = None, target: object = None) -> importlib.machinery.ModuleSpec | None:
+        \"\"\"Return the package's spec from the source tree, or None for any other name.\"\"\"
+        if fullname != _PACKAGE:
+            return None
+        return importlib.util.spec_from_file_location(fullname, os.path.join(_LOCATION, "__init__.py"), submodule_search_locations=[_LOCATION])
+
+
+def install() -> None:
+    \"\"\"Add the finder to the import system once.\"\"\"
+    if _Finder not in sys.meta_path:
+        sys.meta_path.append(_Finder)
+"""
+
+
+def build_editable(wheel_directory: str, config_settings: dict[str, Any] | None = None, metadata_directory: str | None = None) -> str:
+    """Build a PEP 660 editable wheel that imports the package from this source tree, and return its file name.
+
+    The wheel holds a ``.pth`` file that installs an import finder for the
+    package alone, so ``tests`` and ``benchmarks`` beside it never become
+    importable in the target environment.
+    """
+    _check_settings(config_settings)
+    root = Path.cwd()
+    project = _prepared(load_project(root), metadata_directory)
+    module = f"__editable___{project.distribution}_finder"
+    finder = _FINDER.format(package=PACKAGE, location=str((root / PACKAGE).resolve()))
+    files = [(f"{module}.py", finder.encode()), (f"__editable__.{project.distribution}.pth", f"import {module}; {module}.install()\n".encode())]
+    return write_wheel(project, root, Path(wheel_directory), files)
+
+
+def _write_tar(target: Path, members: list[tuple[str, bytes]]) -> None:
+    epoch = source_date_epoch()
+    temporary = target.with_name(f".{target.name}.tmp")
+    try:
+        with temporary.open("wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=epoch, compresslevel=9) as compressed:
+            with tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as archive:
+                for name, data in members:
+                    info = tarfile.TarInfo(name)
+                    info.size, info.mtime, info.mode = len(data), epoch, FILE_MODE
+                    info.uid = info.gid = 0
+                    info.uname = info.gname = ""
+                    archive.addfile(info, io.BytesIO(data))
+        os.replace(temporary, target)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def build_sdist(sdist_directory: str, config_settings: dict[str, Any] | None = None) -> str:
+    """Build the source distribution into ``sdist_directory`` and return its file name.
+
+    It holds ``PKG-INFO``, the project files, the backend, the package, the
+    docs, the tests, and the benchmark, so the gate can run inside it and a
+    wheel built from it is identical to one built from the repository.
+    """
+    _check_settings(config_settings)
+    root = Path.cwd()
+    project = load_project(root)
+    base = f"{project.distribution}-{project.version}"
+    members = [("PKG-INFO", metadata_text(project).encode())] + [(name, (root / name).read_bytes()) for name in SDIST_FILES]
+    for top in SDIST_DIRS:
+        members += _files(root, top, SDIST_SUFFIXES)
+    target = Path(sdist_directory) / f"{base}.tar.gz"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    _write_tar(target, [(f"{base}/{name}", data) for name, data in sorted(members)])
+    return target.name
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Build the wheel and the sdist of this repository into ``dist/``, or ``--outdir``, and print their paths."""
+    parser = argparse.ArgumentParser(prog="python3 buildsys/sql_rag_util_build.py", description="Build sql_rag_util with the standard library only.")
+    parser.add_argument("--outdir", type=Path, default=None, help="output directory (default: dist/ in the repository)")
+    parser.add_argument("--wheel", action="store_true", help="build only the wheel")
+    parser.add_argument("--sdist", action="store_true", help="build only the sdist")
+    args = parser.parse_args(argv)
+    root = Path(__file__).resolve().parent.parent
+    outdir = (args.outdir or root / "dist").resolve()
+    builders = [b for b, chosen in ((build_wheel, args.wheel), (build_sdist, args.sdist)) if chosen or not (args.wheel or args.sdist)]
+    previous = Path.cwd()
+    os.chdir(root)
+    try:
+        for builder in builders:
+            print(outdir / builder(str(outdir)))
+    except BuildError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        os.chdir(previous)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

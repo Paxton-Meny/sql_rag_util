@@ -1,5 +1,5 @@
 #!/bin/sh
 set -eu
 cd "$(git rev-parse --show-toplevel)"
-python3 -m compileall -q sql_rag_util tests
+python3 -m compileall -q sql_rag_util tests buildsys benchmarks
 python3 -m unittest discover -s tests -t . -q
