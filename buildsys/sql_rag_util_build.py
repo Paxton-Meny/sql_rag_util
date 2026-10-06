@@ -10,21 +10,44 @@ See ``docs/design/in-tree-build-backend.md``.
 from __future__ import annotations
 
 import ast
+import base64
+import csv
+import hashlib
+import io
+import os
 import re
+import stat
+import time
 import tomllib
 import unicodedata
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 __all__ = [
     "BuildError",
     "Project",
     "load_project",
     "metadata_text",
+    "wheel_text",
+    "write_dist_info",
+    "source_date_epoch",
+    "get_requires_for_build_wheel",
+    "get_requires_for_build_sdist",
+    "get_requires_for_build_editable",
+    "prepare_metadata_for_build_wheel",
+    "prepare_metadata_for_build_editable",
+    "write_wheel",
+    "build_wheel",
 ]
 
 PACKAGE = "sql_rag_util"
 METADATA_VERSION = "2.4"
+TAG = "py3-none-any"
+PACKAGE_SUFFIXES = frozenset({".py", ".typed"})
+ZIP_EPOCH = 315532800
+FILE_MODE = 0o644
 SUPPORTED_KEYS = frozenset(
     {"name", "version", "description", "readme", "requires-python", "license", "license-files", "authors", "keywords", "classifiers", "urls", "dependencies"}
 )
@@ -190,3 +213,144 @@ def metadata_text(project: Project) -> str:
     lines += [f"Project-URL: {label}, {url}" for label, url in project.urls]
     lines.append("Description-Content-Type: text/markdown")
     return "\n".join(lines) + "\n\n" + project.readme
+
+
+def wheel_text(project: Project) -> str:
+    """Return the ``WHEEL`` file for a pure-Python wheel."""
+    return f"Wheel-Version: 1.0\nGenerator: sql_rag_util_build {project.version}\nRoot-Is-Purelib: true\nTag: {TAG}\n"
+
+
+def _check_settings(config_settings: dict[str, Any] | None) -> None:
+    if config_settings:
+        raise BuildError(f"this backend takes no config settings; got {sorted(config_settings)}")
+
+
+def get_requires_for_build_wheel(config_settings: dict[str, Any] | None = None) -> list[str]:
+    """Return the extra build requirements for a wheel: none."""
+    _check_settings(config_settings)
+    return []
+
+
+def get_requires_for_build_sdist(config_settings: dict[str, Any] | None = None) -> list[str]:
+    """Return the extra build requirements for an sdist: none."""
+    _check_settings(config_settings)
+    return []
+
+
+def get_requires_for_build_editable(config_settings: dict[str, Any] | None = None) -> list[str]:
+    """Return the extra build requirements for an editable wheel: none."""
+    _check_settings(config_settings)
+    return []
+
+
+def write_dist_info(project: Project, root: Path, directory: Path) -> Path:
+    """Write ``METADATA``, ``WHEEL``, and the license files into ``directory/<dist-info>`` and return that path."""
+    dist_info = directory / project.dist_info
+    (dist_info / "licenses").mkdir(parents=True, exist_ok=True)
+    (dist_info / "METADATA").write_text(metadata_text(project), encoding="utf-8", newline="\n")
+    (dist_info / "WHEEL").write_text(wheel_text(project), encoding="utf-8", newline="\n")
+    for name in project.license_files:
+        target = dist_info / "licenses" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((root / name).read_bytes())
+    return dist_info
+
+
+def prepare_metadata_for_build_wheel(metadata_directory: str, config_settings: dict[str, Any] | None = None) -> str:
+    """Write the wheel's ``.dist-info`` directory into ``metadata_directory`` and return its name."""
+    _check_settings(config_settings)
+    root = Path.cwd()
+    return write_dist_info(load_project(root), root, Path(metadata_directory)).name
+
+
+def prepare_metadata_for_build_editable(metadata_directory: str, config_settings: dict[str, Any] | None = None) -> str:
+    """Write the editable wheel's ``.dist-info`` directory, which is the same, and return its name."""
+    return prepare_metadata_for_build_wheel(metadata_directory, config_settings)
+
+
+def source_date_epoch() -> int:
+    """Return the archive timestamp: ``SOURCE_DATE_EPOCH`` when set, never before 1980, which zip cannot store.
+
+    Raises
+    ------
+    BuildError
+        When ``SOURCE_DATE_EPOCH`` is set to something other than whole seconds.
+    """
+    raw = os.environ.get("SOURCE_DATE_EPOCH")
+    if raw is None:
+        return ZIP_EPOCH
+    if not raw.isdigit():
+        raise BuildError(f"SOURCE_DATE_EPOCH must be whole seconds; got {raw!r}")
+    return max(int(raw), ZIP_EPOCH)
+
+
+def _package_files(root: Path) -> list[tuple[str, bytes]]:
+    files = []
+    for directory, subdirectories, names in os.walk(root / PACKAGE):
+        subdirectories[:] = sorted(d for d in subdirectories if d != "__pycache__" and not d.startswith("."))
+        for name in sorted(names):
+            path = Path(directory) / name
+            relative = path.relative_to(root).as_posix()
+            if path.is_symlink() or path.suffix not in PACKAGE_SUFFIXES:
+                raise BuildError(f"{relative} is not a regular .py file or py.typed; remove it or teach the backend about it")
+            files.append((relative, path.read_bytes()))
+    return files
+
+
+def _record(entries: list[tuple[str, bytes]], record: str) -> bytes:
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    for name, data in entries:
+        digest = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
+        writer.writerow((name, f"sha256={digest}", len(data)))
+    writer.writerow((record, "", ""))
+    return out.getvalue().encode()
+
+
+def _write_zip(target: Path, entries: list[tuple[str, bytes]]) -> None:
+    moment = time.gmtime(source_date_epoch())[:6]
+    temporary = target.with_name(f".{target.name}.tmp")
+    try:
+        with zipfile.ZipFile(temporary, "w") as archive:
+            for name, data in entries:
+                info = zipfile.ZipInfo(name, moment)
+                info.create_system = 3
+                info.external_attr = (stat.S_IFREG | FILE_MODE) << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(info, data, compresslevel=9)
+        os.replace(temporary, target)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def write_wheel(project: Project, root: Path, directory: Path, files: list[tuple[str, bytes]]) -> str:
+    """Write a wheel of ``files`` plus the dist-info and ``RECORD`` into ``directory`` and return its file name."""
+    dist_info = project.dist_info
+    entries = sorted(files)
+    entries += [(f"{dist_info}/METADATA", metadata_text(project).encode()), (f"{dist_info}/WHEEL", wheel_text(project).encode())]
+    entries += [(f"{dist_info}/licenses/{name}", (root / name).read_bytes()) for name in project.license_files]
+    entries.append((f"{dist_info}/RECORD", _record(entries, f"{dist_info}/RECORD")))
+    name = f"{project.distribution}-{project.version}-{TAG}.whl"
+    directory.mkdir(parents=True, exist_ok=True)
+    _write_zip(directory / name, entries)
+    return name
+
+
+def build_wheel(wheel_directory: str, config_settings: dict[str, Any] | None = None, metadata_directory: str | None = None) -> str:
+    """Build the wheel into ``wheel_directory`` and return its file name.
+
+    Raises
+    ------
+    BuildError
+        When ``metadata_directory`` holds metadata other than what this build
+        writes, since PEP 517 requires the two to match.
+    """
+    _check_settings(config_settings)
+    root = Path.cwd()
+    project = load_project(root)
+    if metadata_directory is not None:
+        prepared = Path(metadata_directory) / project.dist_info / "METADATA"
+        if not prepared.is_file() or prepared.read_text(encoding="utf-8") != metadata_text(project):
+            raise BuildError(f"{prepared} does not match the metadata this build writes")
+    return write_wheel(project, root, Path(wheel_directory), _package_files(root))
