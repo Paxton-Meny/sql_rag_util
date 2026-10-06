@@ -41,11 +41,11 @@ commands/    tool specs, JSON schema derivation, dispatch, text rendering, instr
 adapters/    tool definition shapes for Anthropic, OpenAI strict, and MCP
 mcp/         JSON-RPC 2.0 stdio server, standard library only
 engine.py    SqlRag facade: connection, dialect, catalog, metadata, config, commands
-retrieval/   tokenizing, BM25, value index, embedding hook, rank fusion, cards, context pack
+retrieval/   tokenizing, BM25, value index, embedding hook, rank fusion, cards, context pack, cache
 search/      term handling, fuzzy strategies, Soundex, Levenshtein, SQLite function registration
 query/       query spec, filters, joins, aggregates, ordering, scope, compilation to one Statement
 metadata/    model, strict parser, canonical writer, contained store, catalog annotation, concepts
-schema/      catalog model, introspection, relationship derivation, name resolution, cache
+schema/      catalog model, introspection, relationship derivation, name resolution
 dialects/    quoting, limit form, introspection statements, type kinds, fuzzy predicates, detection
 sql/         Statement and Bind, rendering to each paramstyle
 executor.py  the only module that calls cursor.execute; never commits

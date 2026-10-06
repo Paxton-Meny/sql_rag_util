@@ -36,7 +36,7 @@ The compact form is a heading line, the description, one line of columns separat
 
 ## search_rows (standard)
 
-`{table, term, columns?, match?, limit?, format?}`. Finds rows whose searchable columns match the term. The term is split into tokens; each token is matched against every searchable column with the strategies the dialect supports, and tokens are combined with `match` (`all` by default, or `any`). Returns the same shape as `query`.
+`{table, term, columns?, match?, strategies?, limit?, format?}`. Finds rows whose searchable columns match the term. The term is split into tokens; each token is matched against every searchable column with the strategies the dialect supports, and tokens are combined with `match` (`all` by default, or `any`). `strategies` narrows matching to some of `exact`, `prefix`, `contains`, `soundex`, `difference`, `levenshtein`, `trigram`, and `fulltext`; omitted, it is `contains` plus every fuzzy strategy this database reports. Only columns flagged `searchable` or `fulltext` in metadata are searched, so on a table without any, it returns an error asking the developer to mark columns searchable. Returns the same shape as `query`, plus `searched` (the columns matched) and `strategies` (the strategies used).
 
 ## get_context (minimal)
 
