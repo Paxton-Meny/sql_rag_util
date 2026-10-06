@@ -13,4 +13,4 @@ Measured with `python3 -m benchmarks.run` on the fixture database (five tables) 
 
 Reading the table: a complete question costs one `get_context` and one `query` or `search_rows`, about 1100 bytes in compact form. Tool definitions are the fixed cost per model call; the `minimal` tier cuts it by about a third, to 4895 bytes against 7773. The compact form is about a third of the JSON form because rows carry no repeated keys and cards are single lines.
 
-Measured 2026-09-13 at version 0.1.0. Update this file in the same branch as any change that moves the numbers.
+Measured 2026-10-06 at version 0.2.0. Update this file in the same branch as any change that moves the numbers.

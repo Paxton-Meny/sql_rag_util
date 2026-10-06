@@ -4,7 +4,7 @@ A dependency-free Python module that lets AI agents, tools, and workflows retrie
 
 ## Status
 
-0.1.0. The API is young and will change between minor versions until 1.0. SQLite is tested live. PostgreSQL, MySQL and MariaDB, and SQL Server are tested end to end through scripted drivers that answer introspection and check every statement and bound value, but not against a running server.
+0.2.0. The API is young and will change between minor versions until 1.0. SQLite is tested live. PostgreSQL, MySQL and MariaDB, and SQL Server are tested end to end through scripted drivers that answer introspection and check every statement and bound value, but not against a running server.
 
 ## Install
 
