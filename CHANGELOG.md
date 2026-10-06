@@ -11,6 +11,7 @@ All notable changes to this project are recorded here. The format follows [Keep 
 ### Changed
 
 - Hidden columns are now absent from the catalog agents resolve against. Naming one raises `UnknownColumnError`, exactly as a missing column does, instead of `SensitiveColumnError`. Breaking for callers that matched the old error type.
+- Removed `SqlRag.raw_catalog`, which nothing used; `docs/sdk.md` documents the engine members tool authors rely on.
 - Every signature is fully annotated and no inline type-checker suppressions remain; `register_sqlite_functions` is typed to take a `sqlite3.Connection`.
 
 ### Fixed

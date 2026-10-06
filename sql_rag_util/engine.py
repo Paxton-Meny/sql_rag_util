@@ -135,13 +135,8 @@ class SqlRag:
 
     @property
     def catalog(self) -> Catalog:
-        """Return the catalog, including renamed and declared relationships."""
+        """Return the agent's catalog: renamed and declared relationships applied, hidden columns absent."""
         return self._annotated.catalog
-
-    @property
-    def raw_catalog(self) -> Catalog:
-        """Return the catalog as introspected, before metadata was applied."""
-        return self._raw_catalog
 
     def validate_metadata(self, metadata: Metadata) -> None:
         """Raise unless ``metadata`` annotates the raw catalog cleanly."""
