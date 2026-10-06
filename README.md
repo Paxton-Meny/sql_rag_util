@@ -4,7 +4,7 @@ A dependency-free Python module that lets AI agents, tools, and workflows retrie
 
 ## Status
 
-0.1.0. The API is young and will change between minor versions until 1.0. SQLite is tested live; MySQL and MariaDB, SQL Server, and PostgreSQL are tested by asserting the exact SQL they emit.
+0.1.0. The API is young and will change between minor versions until 1.0. SQLite is tested live. PostgreSQL, MySQL and MariaDB, and SQL Server are tested end to end through scripted drivers that answer introspection and check every statement and bound value, but not against a running server.
 
 ## Install
 
@@ -14,7 +14,7 @@ Copy or submodule the `sql_rag_util/` directory into your project, or add the re
 
 ```python
 import sqlite3
-from sql_rag_util import Config, SqlRag, register_sqlite_functions
+from sql_rag_util import SqlRag, register_sqlite_functions
 
 connection = sqlite3.connect("shop.db")
 register_sqlite_functions(connection)
@@ -29,7 +29,9 @@ rows = engine.run("query", {
 print(rows.data["columns"], rows.data["rows"], rows.notes)
 ```
 
-Every tool is also reachable through `engine.dispatch(name, arguments)`, which returns a JSON envelope with `schema_version`, `truncated`, and `notes`, or an error with suggestions the agent can act on. `engine.dispatch_text` returns a compact tab-separated form.
+The example assumes a `shop.db` and the metadata from `tests/fixtures/metadata/` copied to `sqlrag_metadata/`. There, `customer` is the name metadata gives the relationship from `orders` to `customers`; without metadata its derived name is `customers_via_customer_id`. `describe_table` lists the names any database has.
+
+`engine.run` returns the raw result and raises on errors. Every tool is also reachable through `engine.dispatch(name, arguments)`, which returns a JSON envelope with `schema_version`, `truncated`, and `notes`, or an error with suggestions the agent can act on. `engine.dispatch_text` returns a compact tab-separated form. [docs/sdk.md](docs/sdk.md) covers the rest of the engine for building your own tools.
 
 For PostgreSQL, MySQL, or SQL Server pass the driver's connection the same way; the dialect is detected from the driver module, and drivers that connect to anything (pyodbc) take `dialect="mssql"` explicitly.
 
@@ -43,7 +45,7 @@ tools = anthropic.tool_definitions(engine, tier="standard")
 functions = openai.tool_definitions(engine)
 ```
 
-When the model calls a tool, hand the name and arguments to `engine.dispatch`. Tiers: `minimal` exposes `get_context` and `query`; `standard` adds `describe_table`, `list_tables`, and `search_rows`; `full` adds the metadata toolkit when `Config(allow_metadata_writes=True)`.
+When the model calls a tool, hand the name and arguments to `engine.dispatch`, with the same tier the definitions came from. Tiers: `minimal` exposes `get_context` and `query`; `standard` adds `describe_table`, `list_tables`, and `search_rows`; `full` adds the metadata toolkit when `Config(allow_metadata_writes=True)`, so a toolkit call is `engine.dispatch(name, arguments, tier="full")`.
 
 ## Usage as an MCP server
 
@@ -55,11 +57,13 @@ Serves the tools over stdio to any MCP client with no installation. Other databa
 
 ## Metadata
 
-A directory of Markdown files adds what the schema does not imply: purposes, column meaning and known values, searchable and sensitive flags, relationships the database does not declare, named concepts (business rules as filters), named measures, and a glossary. The format is specified in [docs/metadata-format.md](docs/metadata-format.md); reference files live under `tests/fixtures/metadata/`. Turning on the value index in `project.md` lets `get_context` map words in a question to the columns holding them.
+A directory of Markdown files adds what the schema does not imply: purposes, column meaning and known values, searchable and sensitive flags, relationships the database does not declare, named concepts (business rules as filters), named measures, and a glossary. The format is specified in [docs/metadata-format.md](docs/metadata-format.md); reference files live under `tests/fixtures/metadata/`. `search_rows` only searches columns marked `searchable` (or `fulltext`), so mark at least one per table you want searched. Turning on the value index in `project.md` lets `get_context` map words in a question to the columns holding them; its cache, under `.cache/` in the metadata directory, holds sampled values, so keep it out of version control.
 
 ## Safety
 
-No arbitrary SQL, ever. Names are resolved against the catalog before they are quoted, values and limits are always bound, sensitive columns are refused in every position, hidden columns do not exist, every statement is capped, and the package never commits. See [docs/threat-model.md](docs/threat-model.md).
+No arbitrary SQL, ever. Names are resolved against the catalog before they are quoted, values and limits are always bound, sensitive columns are refused in every position, hidden columns do not exist to the agent, every statement is capped, and the package never commits. Developer scope filters (`Config.scope`) are applied to every statement the agent causes and may use hidden and sensitive columns; take their values from your application's session, never from the agent.
+
+The package is one layer of defence, not the whole of it. Connect as a database user that can only read the tables the agent should reach, and set a statement timeout on the connection, since the package sets none. See [docs/threat-model.md](docs/threat-model.md), including its Deployment section.
 
 ## Project structure
 
