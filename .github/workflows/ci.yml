@@ -1,0 +1,139 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  gate:
+    name: gate (${{ matrix.python }})
+    if: ${{ !github.event.repository.private || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    env:
+      GIT_TERMINAL_PROMPT: "0"
+      GIT_CONFIG_NOSYSTEM: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_NO_INPUT: "1"
+      PYTHONNOUSERSITE: "1"
+    steps:
+      - name: Fetch the commit under test
+        env:
+          TOKEN: ${{ github.token }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          umask 022
+          auth="$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          cd "$GITHUB_WORKSPACE"
+          git -c init.defaultBranch=ci init -q .
+          git -c protocol.version=2 -c credential.helper= -c "http.extraheader=AUTHORIZATION: basic $auth" \
+            fetch -q --no-tags --no-recurse-submodules --depth=1 "$SERVER_URL/$REPOSITORY.git" "$SHA"
+          git checkout -q --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "$SHA"
+          if git config --local --get-regexp '^http\.' >/dev/null; then
+            echo "::error::credentials persisted in .git/config"
+            exit 1
+          fi
+          git log -1 --format='%H %s'
+
+      - name: Create a virtual environment from the runner's Python ${{ matrix.python }}
+        env:
+          WANT: ${{ matrix.python }}
+        run: |
+          shopt -s nullglob
+          best=""
+          for dir in "$RUNNER_TOOL_CACHE"/Python/*/x64; do
+            version="$(basename "$(dirname "$dir")")"
+            [[ "$version" =~ ^([0-9]+\.[0-9]+)\.[0-9]+$ ]] || continue
+            [[ "${BASH_REMATCH[1]}" == "$WANT" ]] || continue
+            [[ -x "$dir/bin/python3" ]] || continue
+            if [[ -z "$best" || "$(printf '%s\n%s\n' "$best" "$version" | sort -V | tail -n1)" == "$version" ]]; then
+              best="$version"
+            fi
+          done
+          if [[ -z "$best" ]]; then
+            echo "::error::Python $WANT is not in the tool cache of this runner image"
+            ls -1 "$RUNNER_TOOL_CACHE/Python" || true
+            exit 1
+          fi
+          prefix="$RUNNER_TOOL_CACHE/Python/$best/x64"
+          export LD_LIBRARY_PATH="$prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+          "$prefix/bin/python3" -m venv --without-pip "$RUNNER_TEMP/gate"
+          "$RUNNER_TEMP/gate/bin/python" -c 'import os, sys; assert sys.prefix != sys.base_prefix; assert sys.version_info[:2] == tuple(map(int, os.environ["WANT"].split("."))), sys.version; print(sys.executable, sys.version)'
+          {
+            echo "BASE_PYTHON=$prefix/bin/python3"
+            echo "VENV_PYTHON=$RUNNER_TEMP/gate/bin/python"
+            echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          } >> "$GITHUB_ENV"
+
+      - name: Gate
+        run: |
+          "$VENV_PYTHON" -m compileall -q sql_rag_util tests buildsys benchmarks
+          "$VENV_PYTHON" -m unittest discover -s tests -t . -q
+
+      - name: Build the wheel and sdist twice and compare
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          "$VENV_PYTHON" buildsys/sql_rag_util_build.py --outdir "$RUNNER_TEMP/dist"
+          "$VENV_PYTHON" buildsys/sql_rag_util_build.py --outdir "$RUNNER_TEMP/dist-again"
+          for file in "$RUNNER_TEMP"/dist/*; do
+            cmp "$file" "$RUNNER_TEMP/dist-again/$(basename "$file")"
+          done
+          sha256sum "$RUNNER_TEMP"/dist/*
+          {
+            echo "DIST=$RUNNER_TEMP/dist"
+            echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
+          } >> "$GITHUB_ENV"
+
+      - name: Run the gate inside the unpacked sdist and rebuild the wheel from it
+        run: |
+          sdist="$(ls "$DIST"/sql_rag_util-*.tar.gz)"
+          work="$RUNNER_TEMP/sdist"
+          mkdir -p "$work"
+          tar -xzf "$sdist" -C "$work"
+          cd "$work/$(basename "$sdist" .tar.gz)"
+          "$VENV_PYTHON" -m compileall -q sql_rag_util tests buildsys benchmarks
+          "$VENV_PYTHON" -m unittest discover -s tests -t . -q
+          "$VENV_PYTHON" buildsys/sql_rag_util_build.py --outdir "$RUNNER_TEMP/dist-from-sdist" --wheel
+          wheel="$(basename "$(ls "$DIST"/sql_rag_util-*-py3-none-any.whl)")"
+          cmp "$DIST/$wheel" "$RUNNER_TEMP/dist-from-sdist/$wheel"
+
+      - name: Install the sdist, the directory, and an editable copy with the bundled pip, offline
+        run: |
+          "$BASE_PYTHON" -m venv "$RUNNER_TEMP/install"
+          pip=("$RUNNER_TEMP/install/bin/python" -m pip)
+          "${pip[@]}" --version
+          check() {
+            ( cd "$RUNNER_TEMP" && "$RUNNER_TEMP/install/bin/python" -I -c 'import importlib.metadata as m, sys, sql_rag_util; assert m.version("sql_rag_util") == sql_rag_util.__version__; assert sql_rag_util.__file__.startswith(sys.argv[1]), sql_rag_util.__file__; print(sql_rag_util.__file__)' "$1" )
+          }
+          "${pip[@]}" install -q --no-index --no-cache-dir "$DIST"/sql_rag_util-*.tar.gz
+          check "$RUNNER_TEMP/install"
+          "${pip[@]}" uninstall -q -y sql_rag_util
+          "${pip[@]}" install -q --no-index --no-cache-dir "$GITHUB_WORKSPACE"
+          check "$RUNNER_TEMP/install"
+          "${pip[@]}" uninstall -q -y sql_rag_util
+          "${pip[@]}" install -q --no-index --no-cache-dir -e "$GITHUB_WORKSPACE"
+          check "$GITHUB_WORKSPACE"
+          ( cd "$RUNNER_TEMP" && "$RUNNER_TEMP/install/bin/python" -I -c 'import importlib.util, sys; sys.exit(importlib.util.find_spec("tests") is not None)' )
