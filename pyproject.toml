@@ -1,3 +1,8 @@
+[build-system]
+requires = []
+build-backend = "sql_rag_util_build"
+backend-path = ["buildsys"]
+
 [project]
 name = "sql_rag_util"
 version = "0.1.0"

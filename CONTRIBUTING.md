@@ -13,7 +13,7 @@
 3. Commit atomically. Subject in the imperative, capitalized, 72 characters or fewer, no trailing period, no type prefix. Body explains why when the subject cannot.
 4. Run the gate before pushing:
 
-       python3 -m compileall -q sql_rag_util tests && python3 -m unittest discover -s tests -t . -q
+       python3 -m compileall -q sql_rag_util tests buildsys benchmarks && python3 -m unittest discover -s tests -t . -q
 
 5. Rebase onto `main`, open a pull request, fill the template in full, and update `CHANGELOG.md` in the same branch.
 6. Merges are rebase-merge, or squash when the commits are not individually meaningful. History stays linear.
